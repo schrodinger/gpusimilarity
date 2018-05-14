@@ -62,7 +62,7 @@ def main():
 
     qds = QtCore.QDataStream(qf)
     # Set version so that files will be usable cross-release
-    qds.setVersion(QtCore.QDataStream.Qt_5_9)
+    qds.setVersion(QtCore.QDataStream.Qt_5_2)
 
     size = QtCore.QSize(fastsim_utils.BITCOUNT, count)
     qds << size
