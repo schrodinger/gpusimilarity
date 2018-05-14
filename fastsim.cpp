@@ -61,7 +61,7 @@ void FastSimServer::extractData(const QString& database_fname,
     file.open(QIODevice::ReadOnly);
     QDataStream datastream(&file);
     // Set version so that files will be usable cross-release
-    datastream.setVersion(QDataStream::Qt_5_9);
+    //datastream.setVersion(QDataStream::Qt_5_9);
 
     QByteArray smi_data, id_data;
     datastream >> fingerprint_size;
