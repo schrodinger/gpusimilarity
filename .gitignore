@@ -5,3 +5,7 @@
 *.cubin
 *.fatbin
 *~
+
+*.o
+Makefile
+fastsimserver
