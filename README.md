@@ -23,3 +23,12 @@ qmake && make
 Easiest from rdkit conda with pyqt installed:
 
 ```python3 python/fastsim_createdb.py <input smi.gz file> <fingerprint fsim file>```
+
+### For debugging Cuda server, avoiding python/http server altogether:
+```bash
+./fastsimserver <dbname>.fsim
+python3 python fastsim_search.py <dbname>
+```
+Note:  No .fsim extension is used for fastsim_search.py
+
+This may be useful to determine if the backend is having Cuda/GPU problems.
