@@ -12,6 +12,25 @@
 qmake && make
 ```
 
+## Building with CMake and running unit tests with CTest
+```
+mkdir bld
+cd bld
+ccmake ../gpusimilarity
+make -j5
+ctest
+```
+If Cuda, boost or doxygen are not found, start ccmake with the following
+options:
+```
+ccmake -DCMAKE_CUDA_COMPILER=/path/to/nvcc -DBOOST_ROOT=/path/to/boost/directory -DDOXYGEN_EXECUTABLE=/path/to/doxygen
+```
+### Generate the documentation
+```
+make doc_doxygen
+```
+The result in in bld/doc/html
+
 ## Running
 ### For basic json-response http endpoint:
 `python3 python/fastsim_server.py <fingerprint fsim file>`
