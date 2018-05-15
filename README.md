@@ -4,7 +4,7 @@
 * RDKit (At Python level, not compilation)
 * Qt 5.2+
 * PyQt
-* Cuda SDK, expected in default installation location /usr/local
+* Cuda SDK, expected in default installation location /opt/cuda
 * qmake / C++11 capable compiler
 
 ## Building
