@@ -59,10 +59,13 @@ class FastSimServer : public QObject
      * serialize and sends results to the client.
      */
     void incomingSearchRequest();
+    void setUseGPU(bool use_gpu) { m_use_gpu = use_gpu; }
+    bool usingGPU(){ return m_use_gpu; }
 
   private:
     std::shared_ptr<FingerprintDB> m_database;
     std::shared_ptr<QLocalServer> m_server;
+    bool m_use_gpu = true;
 
     bool setupSocket(const QString& database_fname);
     void extractData(const QString& database_fname, QSize& fingerprint_size,

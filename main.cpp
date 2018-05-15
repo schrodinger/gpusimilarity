@@ -9,6 +9,9 @@ int main(int argc, char* argv[])
 {
     QCoreApplication app(argc, argv);
     FastSimServer fastsim(argv[1]);
+    if(app.arguments().contains("--cpu_only")) {
+        fastsim.setUseGPU(false);
+    }
     app.exec();
 
     return 0;

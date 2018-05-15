@@ -18,7 +18,7 @@ def main():
 
         socket.write(fp_qba)
         socket.flush()
-        socket.waitForReadyRead(5000)
+        socket.waitForReadyRead(30000)
         output_qba = socket.readAll()
 
         smiles = []
