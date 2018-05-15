@@ -14,10 +14,10 @@ qmake && make
 
 ## Running
 ### For basic json-response http endpoint:
-`./fastsimserver <fingerprint fsim file>`
+`python3 python/fastsim_server.py <fingerprint fsim file>`
 
 ### For testing (insecure):
-`./fastsimserver <fingerprint_file> --http_interface`
+`python3 python/fastsim_server.py <fingerprint fsim file> --http_interface`
 
 ### For generating databases:
 Easiest from rdkit conda with pyqt installed:

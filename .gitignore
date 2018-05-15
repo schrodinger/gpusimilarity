@@ -9,3 +9,4 @@
 *.o
 Makefile
 fastsimserver
+.qmake.stash

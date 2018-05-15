@@ -15,8 +15,8 @@ SOURCES += main.cpp
 CUDA_SOURCES += fingerprintdb_cuda.cu
 
 # CUDA settings <-- may change depending on your system
-CUDA_SDK = "/usr/local/cuda"   # Path to cuda SDK install
-CUDA_DIR = "/usr/local/cuda"            # Path to cuda toolkit install
+CUDA_SDK = "/opt/cuda"   # Path to cuda SDK install
+CUDA_DIR = "/opt/cuda"            # Path to cuda toolkit install
 
 # DO NOT EDIT BEYOND THIS UNLESS YOU KNOW WHAT YOU ARE DOING....
 

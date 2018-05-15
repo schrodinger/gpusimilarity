@@ -8,7 +8,6 @@ import subprocess
 import time
 
 from PyQt5 import QtCore, QtNetwork
-from PyQt5 import hunt
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
@@ -207,11 +206,10 @@ def main():
     procs = []
     for dbname in args.dbnames:
         # Start the GPU backend
-        combi_bin_dir = hunt('combiglide', 'exec')
-        fastsim_exec = os.path.join(combi_bin_dir, 'fastsim_server')
+        fastsim_exec = 'fastsimserver'
         procs.append(subprocess.Popen([fastsim_exec, dbname]))
         socket = QtNetwork.QLocalSocket(app)
-        dbname_noext = os.path.splitext(dbname)[0]
+        dbname_noext = os.path.splitext(os.path.basename(dbname))[0]
         sockets[dbname_noext] = socket
         while not socket.isValid():
             socket_name = os.path.splitext(os.path.basename(dbname))[0]
