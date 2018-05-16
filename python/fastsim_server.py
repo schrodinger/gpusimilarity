@@ -63,7 +63,7 @@ class FastSimHandler(BaseHTTPRequestHandler):
         if dbname == 'all':
             dbnames = sockets.keys()
         elif dbname not in sockets:
-            self.send_error(404, 'DB %s not found in options: %s' % (dbname, sockets.keys())) #noqa
+            self.send_error(404, f'DB {dbname} not found in options: {sockets.keys()}') #noqa
             raise ValueError('DB not found')
         allsmiles, allids, allscores = [], [], []
         src_smiles = self.get_src_smiles()
