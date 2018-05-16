@@ -30,7 +30,7 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 class FastSimHandler(BaseHTTPRequestHandler):
 
     """
-    Retrieve the smiles passed into the form and the reults from the backend
+    Retrieve the smiles passed into the form and the results from the backend
     """
 
     def get_src_smiles(self):
@@ -74,8 +74,8 @@ class FastSimHandler(BaseHTTPRequestHandler):
             allids += ids
             allscores += scores
 
-        combined = [x for x in zip(allscores, allids, allsmiles)]
-        combined_sorted = sorted(combined, reverse=True)
+        combined_sorted = sorted(zip(allscores, allids, allsmiles),
+                                 reverse=True)
         smiles, ids, scores = [], [], []
         for i in range(RETURN_COUNT):
             score, cid, smi = combined_sorted[i]
