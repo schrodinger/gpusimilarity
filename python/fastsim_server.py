@@ -32,7 +32,8 @@ class FastSimHandler(BaseHTTPRequestHandler):
     """
     Retrieve the smiles passed into the form and the reults from the backend
     """
-    def get_data(self, socket_name):
+
+    def get_src_smiles(self):
         form = cgi.FieldStorage(
             fp=self.rfile,
             headers=self.headers,
@@ -40,8 +41,10 @@ class FastSimHandler(BaseHTTPRequestHandler):
                      'CONTENT_TYPE': self.headers['Content-Type'],
                      })
 
-        search_smiles = form["smiles"].value.strip()
-        fp_binary = fastsim_utils.smiles_to_fingerprint_bin(search_smiles)
+        return form["smiles"].value.strip()
+
+    def get_data(self, socket_name, src_smiles):
+        fp_binary = fastsim_utils.smiles_to_fingerprint_bin(src_smiles)
         fp_qba = QtCore.QByteArray(fp_binary)
 
         socket = sockets[socket_name]
@@ -50,41 +53,71 @@ class FastSimHandler(BaseHTTPRequestHandler):
         socket.waitForReadyRead(5000)
 
         output_qba = socket.readAll()
-        return search_smiles, output_qba
+        return output_qba
 
     def do_GET(self):
         self.send_error(404, 'Server unavailable.')
+
+    def get_data_from_dbname(self, dbname):
+        dbnames = [dbname]
+        if dbname == 'all':
+            dbnames = sockets.keys()
+        elif dbname not in sockets:
+            self.send_error(404, 'DB %s not found in options: %s' % (dbname, sockets.keys())) #noqa
+            raise ValueError('DB not found')
+        allsmiles, allids, allscores = [], [], []
+        src_smiles = self.get_src_smiles()
+        for dbname in dbnames:
+            output_qba = self.get_data(dbname, src_smiles)
+            smiles, ids, scores = self.deserialize_results(output_qba)
+            allsmiles += smiles
+            allids += ids
+            allscores += scores
+
+        combined = [x for x in zip(allscores, allids, allsmiles)]
+        combined_sorted = sorted(combined, reverse=True)
+        smiles, ids, scores = [], [], []
+        for i in range(RETURN_COUNT):
+            score, cid, smi = combined_sorted[i]
+            smiles.append(smi)
+            ids.append(cid)
+            scores.append(score)
+        return smiles, ids, scores, src_smiles
 
     def do_POST(self):
         if not self.path.startswith("/similarity_search_json"):
             return
         dbname = self.path.replace("/similarity_search_json_", "")
-        self.send_error(404, 'DB %s not found in options: %s' % (dbname, sockets.keys())) #noqa
-        return
 
-        _, output_qba = self.get_data(dbname)
-        self.do_json_POST(output_qba)
+        try:
+            smiles, ids, scores, _ = self.get_data_from_dbname(dbname)
+        except ValueError:
+            return
+        self.do_json_POST(smiles, ids, scores)
 
-    def results2json(self, output_qba):
-        data_reader = QtCore.QDataStream(output_qba)
-        smiles, ids, scores = [], [], []
-        for i in range(RETURN_COUNT):
-            smiles.append(data_reader.readString().decode("utf-8"))
-        for i in range(RETURN_COUNT):
-            ids.append(data_reader.readString().decode("utf-8"))
-        for i in range(RETURN_COUNT):
-            scores.append(data_reader.readFloat())
+    def deserialize_results(self, output_qba):
+            data_reader = QtCore.QDataStream(output_qba)
+            smiles, ids, scores = [], [], []
+            for i in range(RETURN_COUNT):
+                smiles.append(data_reader.readString().decode("utf-8"))
+            for i in range(RETURN_COUNT):
+                ids.append(data_reader.readString().decode("utf-8"))
+            for i in range(RETURN_COUNT):
+                scores.append(data_reader.readFloat())
+            return smiles, ids, scores
+
+    def results2json(self, smiles, ids, scores):
         results = []
         for cid, smi, score in zip(ids, smiles, scores):
             results.append([cid, smi, score])
         return results
 
-    def do_json_POST(self, output_qba):
+    def do_json_POST(self, smiles, ids, scores):
         self.send_response(200)
         self.send_header('Content-type', 'text/json')
         self.end_headers()
 
-        results_json = self.results2json(output_qba)
+        results_json = self.results2json(smiles, ids, scores)
         self.wfile.write(json.dumps(results_json).encode('utf8'))
 
 
@@ -96,7 +129,7 @@ class FastSimHTTPHandler(FastSimHandler):
                 '_-2-_', '\\').replace('_-3-_', '#')
             fastsim_utils.smiles_to_image_file(smi, fullpath)
 
-    def write_results_html(self, search_smiles, smiles, scores, ids):
+    def write_results_html(self, src_smiles, smiles, scores, ids):
         for smi, score, cid in zip(smiles, scores, ids):
             id_html = cid
             if cid.startswith('ZINC'):
@@ -109,7 +142,7 @@ class FastSimHTTPHandler(FastSimHandler):
                                 <img src='smiles_{1}.png'>
                                 <table><tr><td>{3}: {1}</td></tr>
                                 <tr><td>{2}</td></tr><td></table>""".format(
-                                    search_smiles, safe_smi, score,
+                                    src_smiles, safe_smi, score,
                                     id_html).encode())
 
     def do_GET(self):
@@ -147,36 +180,23 @@ class FastSimHTTPHandler(FastSimHandler):
 
         dbname = self.path.replace("/similarity_search_", "")
         dbname = dbname.replace("json_", "")  # Strip json if in endpoint
-        if dbname not in sockets:
-            self.send_error(404, 'DB %s not found in options: %s' % (dbname, sockets.keys())) #noqa
+        try:
+            smiles, ids, scores, src_smiles = self.get_data_from_dbname(dbname)
+        except ValueError:
             return
-
-        search_smiles, output_qba = self.get_data(dbname)
         if self.path.startswith("/similarity_search_json"):
-            self.do_json_POST(output_qba)
+            self.do_json_POST(smiles, ids, scores)
         elif self.path.startswith("/similarity_search"):
-            self.do_html_POST(output_qba, search_smiles)
+            self.do_html_POST(smiles, ids, scores, src_smiles)
 
-    def deserialize_results(self, output_qba):
-            data_reader = QtCore.QDataStream(output_qba)
-            smiles, ids, scores = [], [], []
-            for i in range(RETURN_COUNT):
-                smiles.append(data_reader.readString().decode("utf-8"))
-            for i in range(RETURN_COUNT):
-                ids.append(data_reader.readString().decode("utf-8"))
-            for i in range(RETURN_COUNT):
-                scores.append(data_reader.readFloat())
-            return smiles, ids, scores
-
-    def do_html_POST(self, output_qba, search_smiles):
+    def do_html_POST(self, smiles, ids, scores, src_smiles):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
 
-        smiles, ids, scores = self.deserialize_results(output_qba)
         f = open(os.path.join(SCRIPT_DIR, "index.html"), 'rb+')
         self.wfile.write(f.read())
-        self.write_results_html(search_smiles, smiles, scores, ids)
+        self.write_results_html(src_smiles, smiles, scores, ids)
 
 
 def parse_args():
