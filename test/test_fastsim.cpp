@@ -19,10 +19,10 @@
 #include "fingerprintdb_cuda.h"
 
 
-using namespace schrodinger::fastsim;
+using namespace fastsim;
 using std::vector;
 
-using schrodinger::fastsim::FastSimServer;
+using fastsim::FastSimServer;
 
 BOOST_AUTO_TEST_CASE(CompareGPUtoCPU)
 {
