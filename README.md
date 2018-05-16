@@ -9,9 +9,10 @@
 
 ## Building with CMake and running unit tests with CTest
 ```
+From parent directory of source:
 mkdir bld
 cd bld
-ccmake ../
+ccmake ../gpusimilarity
 make -j5
 ctest
 ```
@@ -24,24 +25,28 @@ ccmake -DCMAKE_CUDA_COMPILER=/path/to/nvcc -DBOOST_ROOT=/path/to/boost/directory
 ```
 make doc_doxygen
 ```
-The result in in bld/doc/html
+The result is in bld/doc/html
 
 ## Running
 ### For basic json-response http endpoint:
-`python3 python/fastsim_server.py <fingerprint fsim file>`
+From build directory:
+`python3 ${SRC_DIR}/python/fastsim_server.py <fingerprint fsim file>`
 
 ### For testing (insecure):
-`python3 python/fastsim_server.py <fingerprint fsim file> --http_interface`
+From build directory:
+`python3 ${SRC_DIR}/python/fastsim_server.py <fingerprint fsim file> --http_interface`
 
 ### For generating databases:
 Easiest from rdkit conda with pyqt installed:
 
-```python3 python/fastsim_createdb.py <input smi.gz file> <fingerprint fsim file>```
+From source python directory:
+```python3 fastsim_createdb.py <input smi.gz file> <fingerprint fsim file>```
 
 ### For debugging Cuda server, avoiding python/http server altogether:
 ```bash
+From build directory:
 ./fastsimserver <dbname>.fsim
-python3 python fastsim_search.py <dbname>
+python3 python ${SRC_DIR}/python/fastsim_search.py <dbname>
 ```
 Note:  No .fsim extension is used for fastsim_search.py
 

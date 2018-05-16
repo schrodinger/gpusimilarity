@@ -59,22 +59,22 @@ target_include_directories(fastsim PUBLIC
     $<INSTALL_INTERFACE:include>)
 
 
-add_executable(fastsim_exe main.cpp)
+add_executable(fastsimserver main.cpp)
 # Force C++11
-target_compile_features(fastsim_exe PRIVATE cxx_override)
+target_compile_features(fastsimserver PRIVATE cxx_override)
 
 # Force -fPIC on executable. This is Qt bug.
 # https://bugreports.qt.io/browse/QTBUG-51593
 # https://cmake.org/Bug/view.php?id=9659
 # https://gitlab.kitware.com/cmake/cmake/issues/16002
 if(Qt5_POSITION_INDEPENDENT_CODE)
-  target_compile_options(fastsim_exe PRIVATE -fPIC)
+  target_compile_options(fastsimserver PRIVATE -fPIC)
 endif()
 
 target_link_libraries(fastsim Qt5::Network)
-target_link_libraries(fastsim_exe fastsim)
+target_link_libraries(fastsimserver fastsim)
 
-install(TARGETS fastsim_exe RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS fastsimserver RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(TARGETS fastsim EXPORT fastsimConfig
     ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
