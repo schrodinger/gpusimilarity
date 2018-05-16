@@ -5,7 +5,9 @@
 * Qt 5.2+
 * PyQt
 * Cuda SDK, expected in default installation location /opt/cuda
-* qmake / C++11 capable compiler
+* cmake 3.10.2+ / C++11 capable compiler
+* Boost
+* Optional: Doxygen for generating documents
 
 ## Building with CMake and running unit tests with CTest
 ```
@@ -22,6 +24,7 @@ options:
 ccmake -DCMAKE_CUDA_COMPILER=/path/to/nvcc -DBOOST_ROOT=/path/to/boost/directory -DDOXYGEN_EXECUTABLE=/path/to/doxygen
 ```
 ### Generate the documentation
+Install doxygen on system
 ```
 make doc_doxygen
 ```
