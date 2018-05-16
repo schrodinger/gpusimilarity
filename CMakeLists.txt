@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.11.1 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.10.2 FATAL_ERROR)
 project(FastSimProject VERSION 1.0.0.0 DESCRIPTION "fingerpring similarity searching" LANGUAGES CXX CUDA)
 include(CTest)
 include(GNUInstallDirs)
@@ -62,6 +62,14 @@ target_include_directories(fastsim PUBLIC
 add_executable(fastsim_exe main.cpp)
 # Force C++11
 target_compile_features(fastsim_exe PRIVATE cxx_override)
+
+# Force -fPIC on executable. This is Qt bug.
+# https://bugreports.qt.io/browse/QTBUG-51593
+# https://cmake.org/Bug/view.php?id=9659
+# https://gitlab.kitware.com/cmake/cmake/issues/16002
+if(Qt5_POSITION_INDEPENDENT_CODE)
+  target_compile_options(fastsim_exe PRIVATE -fPIC)
+endif()
 
 target_link_libraries(fastsim Qt5::Network)
 target_link_libraries(fastsim_exe fastsim)
