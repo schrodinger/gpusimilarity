@@ -47,7 +47,7 @@ class FastSimHandler(BaseHTTPRequestHandler):
         socket = sockets[socket_name]
         socket.write(fp_qba)
         socket.flush()
-        socket.waitForReadyRead(5000)
+        socket.waitForReadyRead(30000)
 
         output_qba = socket.readAll()
         return search_smiles, output_qba
@@ -192,6 +192,8 @@ def parse_args():
                         help="Port to run on")
     parser.add_argument('--http_interface', action='store_true',
                         help="Start HTTP server for debugging, not secure enough for production machine") #noqa
+    parser.add_argument('--cpu_only', action='store_true',
+                        help="Search the database on the CPU, not the GPU (slow)") #noqa
     return parser.parse_args()
 
 
@@ -207,7 +209,10 @@ def main():
     for dbname in args.dbnames:
         # Start the GPU backend
         fastsim_exec = 'fastsimserver'
-        procs.append(subprocess.Popen([fastsim_exec, dbname]))
+        cmdline = [fastsim_exec, dbname]
+        if args.cpu_only:
+            cmdline.append('--cpu_only')
+        procs.append(subprocess.Popen(cmdline))
         socket = QtNetwork.QLocalSocket(app)
         dbname_noext = os.path.splitext(os.path.basename(dbname))[0]
         sockets[dbname_noext] = socket

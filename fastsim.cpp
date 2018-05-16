@@ -156,7 +156,13 @@ void FastSimServer::incomingSearchRequest()
     // Perform similarity search and return results in relevant vectors
     vector<char *> results_smiles, results_ids;
     vector<float> results_scores;
-    similaritySearch(query, results_smiles, results_ids, results_scores);
+    
+    if(usingGPU()) {
+        similaritySearch(query, results_smiles, results_ids, results_scores);
+    } else {
+        similaritySearch(query, results_smiles, results_ids, results_scores,
+               CalcType::CPU);
+    }
 
     // Create QByteArrays and QDataStreams to write to corresponding arrays
     QByteArray output_smiles, output_ids, output_scores;

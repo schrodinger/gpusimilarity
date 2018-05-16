@@ -10,3 +10,4 @@
 Makefile
 fastsimserver
 .qmake.stash
+smiles_*png
