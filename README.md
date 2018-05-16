@@ -7,16 +7,11 @@
 * Cuda SDK, expected in default installation location /opt/cuda
 * qmake / C++11 capable compiler
 
-## Building
-```bash
-qmake && make
-```
-
 ## Building with CMake and running unit tests with CTest
 ```
 mkdir bld
 cd bld
-ccmake ../gpusimilarity
+ccmake ../
 make -j5
 ctest
 ```
