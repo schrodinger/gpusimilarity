@@ -2,11 +2,12 @@
 
 ## Dependencies
 * RDKit (At Python level, not compilation)
-* Qt 5.2+
+* Qt 5.2+ (including QtNetwork)
 * PyQt
-* Cuda SDK, expected in default installation location /opt/cuda
-* cmake 3.10.2+ / C++11 capable compiler
-* Boost
+* Cuda SDK, CUDACXX env variable pointing to nvcc
+* cmake 3.10.2+
+* C++11 capable compiler
+* Boost test libraries
 * Optional: Doxygen for generating documents
 
 ## Building with CMake and running unit tests with CTest
