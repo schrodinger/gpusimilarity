@@ -22,6 +22,11 @@ SCRIPT_DIR = os.path.split(__file__)[0]
 BITCOUNT = 1024
 sockets = {}
 
+try:
+    from fastsim_server_loc import FASTSIM_EXEC  # Used in schrodinger env
+except ImportError:
+    FASTSIM_EXEC  = 'fastsimserver'
+
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     """Use threads to handle requests"""
@@ -228,8 +233,7 @@ def main():
     procs = []
     for dbname in args.dbnames:
         # Start the GPU backend
-        fastsim_exec = 'fastsimserver'
-        cmdline = [fastsim_exec, dbname]
+        cmdline = [FASTSIM_EXEC, dbname]
         if args.cpu_only:
             cmdline.append('--cpu_only')
         procs.append(subprocess.Popen(cmdline))
