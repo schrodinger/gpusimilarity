@@ -3,8 +3,8 @@ project(FastSimProject VERSION 1.0.0.0 DESCRIPTION "fingerpring similarity searc
 include(CTest)
 include(GNUInstallDirs)
 
-set(QT_MINIMAL_VERSION 5.9.5)
-set(BOOST_MINIMAL_VERSION 1.62.0)
+set(QT_MINIMAL_VERSION 5.2.0)
+set(BOOST_MINIMAL_VERSION 1.54.0)
 set(CUDA_MINIMAL_VERSION 8.0.61)
 
 
