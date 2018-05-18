@@ -22,7 +22,7 @@ using thrust::device_vector;
 namespace fastsim
 {
 
-using DFingerprint = device_vector<int>;
+typedef device_vector<int> DFingerprint;
 
 /**
  * @internal
