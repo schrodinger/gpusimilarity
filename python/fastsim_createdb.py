@@ -5,7 +5,6 @@ Use this to create a serialized data file to be used with the fastsim backend.
 NOTE:  GPGPU backend requires fingerprint size to be sizeof(int) divisible
 """
 
-
 from PyQt5 import QtCore
 import gzip
 
@@ -26,6 +25,7 @@ try:
     dview = rc[:]
 except ImportError:
     dview = None
+
 
 def main():
     args = parse_args()
@@ -54,7 +54,7 @@ def main():
     print(len(lines))
     while lines != []:
 
-        rows = fastsim_utils.split_lines_add_fp(lines,dview=dview)
+        rows = fastsim_utils.split_lines_add_fp(lines, dview=dview)
         filtered_rows = [row for row in rows if row is not None]
         count += len(filtered_rows)
         for row in filtered_rows:

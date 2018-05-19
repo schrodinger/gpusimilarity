@@ -32,7 +32,7 @@ def add_fingerprint_bin_to_smi_line(line):
     return (smiles, cid, fp_binary)
 
 
-def split_lines_add_fp(lines,dview=None):
+def split_lines_add_fp(lines, dview=None):
     if dview is not None:
         return dview.map_sync(add_fingerprint_bin_to_smi_line, lines)
     else:
