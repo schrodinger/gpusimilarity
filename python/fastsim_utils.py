@@ -20,30 +20,32 @@ BITCOUNT = 1024
 RETURN_COUNT = 10  # must match server return count, defined in types.h
 
 
-def add_fingerprint_bin_to_smi_line(line):
+def add_fingerprint_bin_to_smi_line(line, trustSmiles=False):
     splitl = line.strip().split()
     try:
         smiles, cid = splitl[:2]
     except ValueError:
         raise ValueError(splitl)
-    fp_binary = smiles_to_fingerprint_bin(smiles)
+    fp_binary = smiles_to_fingerprint_bin(smiles, trustSmiles=trustSmiles)
     if fp_binary is None:
         return None
     return (smiles, cid, fp_binary)
 
 
-def split_lines_add_fp(lines, dview=None):
+def split_lines_add_fp(lines, dview=None, trustSmiles=False):
     if dview is not None:
-        return dview.map_sync(add_fingerprint_bin_to_smi_line, lines)
+        return dview.map_sync(lambda x: add_fingerprint_bin_to_smi_line(x, trustSmiles=trustSmiles), lines)
     else:
         return map(add_fingerprint_bin_to_smi_line, lines)
 
 
-def smiles_to_fingerprint_bin(smiles):
-
-    mol = Chem.MolFromSmiles(smiles)
+def smiles_to_fingerprint_bin(smiles, trustSmiles=False):
+    mol = Chem.MolFromSmiles(smiles, sanitize=(not trustSmiles))
     if mol is None:
         return None
+    if trustSmiles:
+        mol.UpdatePropertyCache()
+        Chem.FastFindRings(mol)
     fp = rdMolDescriptors.GetMorganFingerprintAsBitVect(mol, 2, BITCOUNT)
 
     return DataStructs.BitVectToBinaryText(fp)
