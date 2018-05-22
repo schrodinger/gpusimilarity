@@ -16,6 +16,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='A toy!')
     parser.add_argument('inputfile')
     parser.add_argument('outputfile')
+    parser.add_argument('--trustSmiles', action='store_true', default=False)
     return parser.parse_args()
 
 
@@ -53,8 +54,8 @@ def main():
     lines = input_fhandle.readlines(read_bytes)
     print(len(lines))
     while lines != []:
-
-        rows = fastsim_utils.split_lines_add_fp(lines, dview=dview)
+        rows = fastsim_utils.split_lines_add_fp(
+            lines, dview=dview, trustSmiles=args.trustSmiles)
         filtered_rows = [row for row in rows if row is not None]
         count += len(filtered_rows)
         for row in filtered_rows:
