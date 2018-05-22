@@ -13,6 +13,7 @@ GeForce 1080Ti:  0.05 seconds (~350M a second)
 ## Example integration
 
 Here is a video of this backend being utilized for immediate-response searching inside Schrödinger's LiveDesign application:
+
 [![GPUSimilarity Gadget](http://img.youtube.com/vi/DZhknAXXEo4/0.jpg)](http://www.youtube.com/watch?v=DZhknAXXEo4)
 
 ## Dependencies
