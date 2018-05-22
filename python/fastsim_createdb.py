@@ -55,7 +55,7 @@ def main():
     print(len(lines))
     while lines != []:
         rows = fastsim_utils.split_lines_add_fp(
-            lines, dview=dview, trustSmiles=args.trustSmiles)
+            lines, dview=dview, trust_smiles=args.trustSmiles)
         filtered_rows = [row for row in rows if row is not None]
         count += len(filtered_rows)
         for row in filtered_rows:
