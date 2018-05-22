@@ -7,7 +7,9 @@ A brute-force GPU implementation of chemical fingerprint similarity searching.  
 Basic benchmarks for searching a 17M [Zinc-based](http://zinc.docking.org/) library:
 
 Full similarity comparison against all 17M compounds with 1024bit fingerprints, including sort of results:
+
 Tesla V100:  0.025 seconds (~680M a second)
+
 GeForce 1080Ti:  0.05 seconds (~350M a second)
 
 ## Example integration
