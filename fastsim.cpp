@@ -153,7 +153,7 @@ void FastSimServer::incomingSearchRequest()
     QByteArray fp_data;
     qds >> fp_data;
     const int* raw_fp_data = reinterpret_cast<const int*>(fp_data.constData());
-    int fp_int_size = fp_data.size() / sizeof(int);
+    const int fp_int_size = fp_data.size() / sizeof(int);
 
     Fingerprint query(fp_int_size);
     query.assign(raw_fp_data, raw_fp_data + fp_int_size);
