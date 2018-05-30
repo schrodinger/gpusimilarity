@@ -150,7 +150,6 @@ void FastSimServer::incomingSearchRequest()
     QDataStream qds(&data, QIODevice::ReadOnly);
     int results_requested;
     qds >> results_requested;
-    qDebug() << results_requested;
     QByteArray fp_data;
     qds >> fp_data;
     const int* raw_fp_data = reinterpret_cast<const int*>(fp_data.constData());
@@ -176,7 +175,6 @@ void FastSimServer::incomingSearchRequest()
     QDataStream ids_stream(&output_ids, QIODevice::WriteOnly);
     QDataStream scores_stream(&output_scores, QIODevice::WriteOnly);
     for (int i = 0; i < results_requested; i++) {
-        qDebug() << results_smiles[i];
         smiles_stream << results_smiles[i];
         ids_stream << results_ids[i];
         scores_stream << results_scores[i];
