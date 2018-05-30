@@ -110,17 +110,17 @@ bool FastSimServer::setupSocket(const QString& database_fname)
 
 void FastSimServer::similaritySearch(const Fingerprint& reference,
         vector<char*>& results_smiles, vector<char*>& results_ids,
-        vector<float>& results_scores, CalcType calc_type)
+        vector<float>& results_scores, int return_count, CalcType calc_type)
 {
     struct timeval tval_before, tval_after, tval_result;
     gettimeofday(&tval_before, nullptr);
 
     if(calc_type == CalcType::GPU) {
         m_database->search(reference, results_smiles, results_ids,
-                results_scores);
+                results_scores, return_count);
     } else {
         m_database->search_cpu(reference, results_smiles, results_ids,
-                results_scores);
+                results_scores, return_count);
     }
 
     gettimeofday(&tval_after, nullptr);
@@ -147,20 +147,26 @@ void FastSimServer::incomingSearchRequest()
 
     // Read incoming Fingerprint binary and put it in Fingerprint object
     QByteArray data = clientConnection->readAll();
-    const int* raw_data = reinterpret_cast<const int*>(data.constData());
-    int fp_int_size = data.size() / sizeof(int);
+    QDataStream qds(&data, QIODevice::ReadOnly);
+    int results_requested;
+    qds >> results_requested;
+    qDebug() << results_requested;
+    QByteArray fp_data;
+    qds >> fp_data;
+    const int* raw_fp_data = reinterpret_cast<const int*>(fp_data.constData());
+    int fp_int_size = fp_data.size() / sizeof(int);
 
     Fingerprint query(fp_int_size);
-    query.assign(raw_data, raw_data + fp_int_size);
+    query.assign(raw_fp_data, raw_fp_data + fp_int_size);
 
     // Perform similarity search and return results in relevant vectors
     vector<char *> results_smiles, results_ids;
     vector<float> results_scores;
     
     if(usingGPU()) {
-        similaritySearch(query, results_smiles, results_ids, results_scores);
+        similaritySearch(query, results_smiles, results_ids, results_scores, results_requested);
     } else {
-        similaritySearch(query, results_smiles, results_ids, results_scores,
+        similaritySearch(query, results_smiles, results_ids, results_scores, results_requested,
                CalcType::CPU);
     }
 
@@ -169,13 +175,18 @@ void FastSimServer::incomingSearchRequest()
     QDataStream smiles_stream(&output_smiles, QIODevice::WriteOnly);
     QDataStream ids_stream(&output_ids, QIODevice::WriteOnly);
     QDataStream scores_stream(&output_scores, QIODevice::WriteOnly);
-    for (int i = 0; i < RETURN_COUNT; i++) {
+    for (int i = 0; i < results_requested; i++) {
+        qDebug() << results_smiles[i];
         smiles_stream << results_smiles[i];
         ids_stream << results_ids[i];
         scores_stream << results_scores[i];
     }
 
     // Transmit binary data to client and flush the buffered data
+    QByteArray rcount;
+    QDataStream rcount_qds(&rcount, QIODevice::WriteOnly);
+    rcount_qds << results_requested;
+    clientConnection->write(rcount);
     clientConnection->write(output_smiles);
     clientConnection->write(output_ids);
     clientConnection->write(output_scores);

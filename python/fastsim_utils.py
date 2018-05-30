@@ -17,7 +17,6 @@ from rdkit.Chem import rdMolDescriptors
 
 # NOTE:  GPGPU backend requires fingerprint size to be sizeof(int) divisible
 BITCOUNT = 1024
-RETURN_COUNT = 10  # must match server return count, defined in types.h
 
 
 def add_fingerprint_bin_to_smi_line(line, trust_smiles=False):

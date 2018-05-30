@@ -1,7 +1,7 @@
 import sys
 from PyQt5 import QtCore, QtNetwork
 
-from fastsim_utils import smiles_to_fingerprint_bin, RETURN_COUNT
+from fastsim_utils import smiles_to_fingerprint_bin
 
 
 def main():
@@ -13,10 +13,18 @@ def main():
     socket.connectToServer(db_name)
 
     while smiles and smiles.lower() not in ('quit', 'exit'):
+        return_count = 20
+
         fp_binary = smiles_to_fingerprint_bin(smiles)
         fp_qba = QtCore.QByteArray(fp_binary)
 
-        socket.write(fp_qba)
+        output_qba = QtCore.QByteArray()
+        output_qds = QtCore.QDataStream(output_qba, QtCore.QIODevice.WriteOnly)
+
+        output_qds.writeInt(return_count)
+        output_qds << fp_qba
+
+        socket.write(output_qba)
         socket.flush()
         socket.waitForReadyRead(30000)
         output_qba = socket.readAll()
@@ -27,11 +35,11 @@ def main():
 
         data_reader = QtCore.QDataStream(output_qba)
 
-        for i in range(RETURN_COUNT):
+        for i in range(return_count):
             smiles.append(data_reader.readString())
-        for i in range(RETURN_COUNT):
+        for i in range(return_count):
             ids.append(data_reader.readString().decode("utf-8"))
-        for i in range(RETURN_COUNT):
+        for i in range(return_count):
             scores.append(data_reader.readFloat())
 
         for cid, smi, score in zip(ids, smiles, scores):
