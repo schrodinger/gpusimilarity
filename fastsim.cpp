@@ -110,7 +110,7 @@ bool FastSimServer::setupSocket(const QString& database_fname)
 
 void FastSimServer::similaritySearch(const Fingerprint& reference,
         vector<char*>& results_smiles, vector<char*>& results_ids,
-        vector<float>& results_scores, int return_count, CalcType calc_type)
+        vector<float>& results_scores, unsigned int return_count, CalcType calc_type)
 {
     struct timeval tval_before, tval_after, tval_result;
     gettimeofday(&tval_before, nullptr);

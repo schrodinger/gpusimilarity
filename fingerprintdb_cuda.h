@@ -49,13 +49,13 @@ class FingerprintDB
     void search(const Fingerprint& query, std::vector<char*>& results_smiles,
                 std::vector<char*>& results_ids,
                 std::vector<float>& results_scores,
-                int return_count) const;
+                unsigned int return_count) const;
 
     void search_cpu (const Fingerprint& query,
             std::vector<char*>& results_smiles,
             std::vector<char*>& results_ids,
             std::vector<float>& results_scores,
-            int return_count) const;
+            unsigned int return_count) const;
 
 
     char* getSmiles(int index) { return m_smiles[index]; }

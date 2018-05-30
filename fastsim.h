@@ -40,7 +40,7 @@ class FastSimServer : public QObject
                           std::vector<char*>& results_smiles,
                           std::vector<char*>& results_ids,
                           std::vector<float>& results_scores,
-                          int return_count,
+                          unsigned int return_count,
                           CalcType calc_type=CalcType::GPU);
 
     /**
