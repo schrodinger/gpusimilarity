@@ -166,7 +166,7 @@ Fingerprint FingerprintDB::getFingerprint(unsigned int index) const
 void FingerprintDB::search (const Fingerprint& query,
         std::vector<char*>& results_smiles,
         std::vector<char*>& results_ids,
-        std::vector<float>& results_scores) const
+        std::vector<float>& results_scores, unsigned int return_count) const
 {
     device_vector<int> d_results_indices(count());
     device_vector<float> d_results_scores(count());
@@ -191,20 +191,20 @@ void FingerprintDB::search (const Fingerprint& query,
         std::cerr << "Error!  " << e.what() << std::endl;
     }
 
-    // Push top RETURN_COUNT results to CPU results vectors to be returned
-    for(int i=0;i<RETURN_COUNT;i++) {
+    // Push top return_count results to CPU results vectors to be returned
+    for(unsigned int i=0;i<return_count;i++) {
         results_smiles.push_back(m_smiles[d_results_indices[i]]);
         results_ids.push_back(m_ids[d_results_indices[i]]);
     }
     results_scores.assign(d_results_scores.begin(),
-            d_results_scores.begin()+RETURN_COUNT);
+            d_results_scores.begin()+return_count);
 
 }
 
 void FingerprintDB::search_cpu (const Fingerprint& query,
         std::vector<char*>& results_smiles,
         std::vector<char*>& results_ids,
-        std::vector<float>& results_scores) const
+        std::vector<float>& results_scores, unsigned int return_count) const
 {
     const int total = count();
     vector<int> indices(total);
@@ -218,10 +218,10 @@ void FingerprintDB::search_cpu (const Fingerprint& query,
     std::transform(indices.begin(), indices.end(), scores.begin(),
             TanimotoFunctorCPU(query, m_fp_intsize, m_priv->data));
 
-    top_results_bubble_sort(indices, scores, RETURN_COUNT);
+    top_results_bubble_sort(indices, scores, return_count);
 
-    // Push top RETURN_COUNT results to CPU results vectors to be returned
-    for(int i=total-1;i>=total-RETURN_COUNT;i--) {
+    // Push top return_count results to CPU results vectors to be returned
+    for(unsigned int i=total-1;i>=total-return_count;i--) {
         results_smiles.push_back(m_smiles[indices[i]]);
         results_ids.push_back(m_ids[indices[i]]);
         results_scores.push_back(scores[i]);

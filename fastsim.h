@@ -28,9 +28,8 @@ class FastSimServer : public QObject
 
     /**
      * @brief
-     * Finds the <RETURN_COUNT> most similar compounds stored in the database
-     * to the reference fingerprint provided, where RETURN_COUNT is a constant
-     * defined in types.h
+     * Finds the <return_count> most similar compounds stored in the database
+     * to the reference fingerprint provided
      *
      * @param query: Fingerprint to find closest matches to
      * @param results_smiles: Vector to store smiles of results
@@ -41,6 +40,7 @@ class FastSimServer : public QObject
                           std::vector<char*>& results_smiles,
                           std::vector<char*>& results_ids,
                           std::vector<float>& results_scores,
+                          unsigned int return_count,
                           CalcType calc_type=CalcType::GPU);
 
     /**

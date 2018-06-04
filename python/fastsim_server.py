@@ -16,7 +16,6 @@ import cgi
 import json
 
 import fastsim_utils
-from fastsim_utils import RETURN_COUNT
 
 SCRIPT_DIR = os.path.split(__file__)[0]
 BITCOUNT = 1024
@@ -25,7 +24,7 @@ sockets = {}
 try:
     from fastsim_server_loc import FASTSIM_EXEC  # Used in schrodinger env
 except ImportError:
-    FASTSIM_EXEC  = 'fastsimserver'
+    FASTSIM_EXEC  = './fastsimserver'
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
@@ -38,7 +37,7 @@ class FastSimHandler(BaseHTTPRequestHandler):
     Retrieve the smiles passed into the form and the results from the backend
     """
 
-    def get_src_smiles(self):
+    def get_posted_data(self):
         form = cgi.FieldStorage(
             fp=self.rfile,
             headers=self.headers,
@@ -46,14 +45,20 @@ class FastSimHandler(BaseHTTPRequestHandler):
                      'CONTENT_TYPE': self.headers['Content-Type'],
                      })
 
-        return form["smiles"].value.strip()
+        return form["smiles"].value.strip(), int(form["return_count"].value)
 
-    def get_data(self, socket_name, src_smiles):
+    def get_data(self, socket_name, src_smiles, return_count):
         fp_binary = fastsim_utils.smiles_to_fingerprint_bin(src_smiles)
         fp_qba = QtCore.QByteArray(fp_binary)
 
+        output_qba = QtCore.QByteArray()
+        output_qds = QtCore.QDataStream(output_qba, QtCore.QIODevice.WriteOnly)
+
+        output_qds.writeInt(return_count)
+        output_qds << fp_qba
+
         socket = sockets[socket_name]
-        socket.write(fp_qba)
+        socket.write(output_qba)
         socket.flush()
         socket.waitForReadyRead(30000)
 
@@ -71,10 +76,10 @@ class FastSimHandler(BaseHTTPRequestHandler):
             self.send_error(404, f'DB {dbname} not found in options: {sockets.keys()}') #noqa
             raise ValueError('DB not found')
         allsmiles, allids, allscores = [], [], []
-        src_smiles = self.get_src_smiles()
+        src_smiles, return_count = self.get_posted_data()
         for dbname in dbnames:
-            output_qba = self.get_data(dbname, src_smiles)
-            smiles, ids, scores = self.deserialize_results(output_qba)
+            output_qba = self.get_data(dbname, src_smiles, return_count)
+            return_count, smiles, ids, scores = self.deserialize_results(output_qba)
             allsmiles += smiles
             allids += ids
             allscores += scores
@@ -82,7 +87,7 @@ class FastSimHandler(BaseHTTPRequestHandler):
         combined_sorted = sorted(zip(allscores, allids, allsmiles),
                                  reverse=True)
         smiles, ids, scores = [], [], []
-        for i in range(RETURN_COUNT):
+        for i in range(return_count):
             score, cid, smi = combined_sorted[i]
             smiles.append(smi)
             ids.append(cid)
@@ -102,14 +107,15 @@ class FastSimHandler(BaseHTTPRequestHandler):
 
     def deserialize_results(self, output_qba):
             data_reader = QtCore.QDataStream(output_qba)
+            return_count = data_reader.readInt()
             smiles, ids, scores = [], [], []
-            for i in range(RETURN_COUNT):
+            for i in range(return_count):
                 smiles.append(data_reader.readString().decode("utf-8"))
-            for i in range(RETURN_COUNT):
+            for i in range(return_count):
                 ids.append(data_reader.readString().decode("utf-8"))
-            for i in range(RETURN_COUNT):
+            for i in range(return_count):
                 scores.append(data_reader.readFloat())
-            return smiles, ids, scores
+            return return_count, smiles, ids, scores
 
     def results2json(self, smiles, ids, scores):
         results = []
