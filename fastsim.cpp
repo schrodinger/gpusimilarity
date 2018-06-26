@@ -21,6 +21,7 @@
 #include <sys/time.h>
 
 #include "fingerprintdb_cuda.h"
+#include "local_qinfo.h"
 
 using std::shared_ptr;
 using std::vector;
