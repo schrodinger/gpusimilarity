@@ -1,0 +1,12 @@
+drop foreign table similarity_search;
+CREATE FOREIGN TABLE similarity_search (
+    SMILES character varying,
+    id character varying,
+    similarity real
+) server gpusim_srv options (
+    server 'http://localhost',
+    port '8080',
+    db_name 'all',
+    SMILES 'CCCC',
+    max_results '35'
+);
