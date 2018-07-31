@@ -84,6 +84,8 @@ install(FILES fastsim.h types.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(EXPORT fastsimConfig DESTINATION share/fastsim/cmake)
 export(TARGETS fastsim FILE fastsimConfig.cmake)
 
+file(COPY "python" DESTINATION ".")
+
 option(BUILD_ON_CHROOT_CENTOS6 "" false)
 if(BUILD_ON_CHROOT_CENTOS6)
   install(FILES /usr/lib64/libicui18n.so.42 /usr/lib64/libicui18n.so.42.1 /usr/lib64/libicuuc.so.42 /usr/lib64/libicuuc.so.42.1 /usr/lib64/libicudata.so.42 /usr/lib64/libicudata.so.42.1 DESTINATION ${CMAKE_INSTALL_LIBDIR})
