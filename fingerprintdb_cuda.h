@@ -84,5 +84,6 @@ void top_results_bubble_sort(std::vector<int>& indices,
 std::vector<int> fold_fingerprint(std::vector<int> &, const int);
 
 } // namespace gpusim
+>>>>>>> 0be8a44... Add stub for folding fingerprints
 
 #endif
