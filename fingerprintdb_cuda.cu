@@ -246,5 +246,9 @@ float FingerprintDB::tanimoto_similarity_cpu(const Fingerprint& fp1,
     return (float)common / (float)(total-common);
 }
 
+int fold_fingerprint(int fp)
+{
+    return 1;
+}
 
 } // namespace fastsim
