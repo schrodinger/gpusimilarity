@@ -8,6 +8,7 @@
 #include "fingerprintdb_cuda.h"
 
 #include <iostream>
+#include <cmath>
 
 #include <algorithm>
 #include <cuda_runtime_api.h>
@@ -246,9 +247,47 @@ float FingerprintDB::tanimoto_similarity_cpu(const Fingerprint& fp1,
     return (float)common / (float)(total-common);
 }
 
-int fold_fingerprint(int fp)
+std::vector<int> fold_fingerprint(std::vector<int> &fp, const int factor)
 {
-    return 1;
+    int n_arr = sizeof(int)*CHAR_BIT;
+    int arr[n_arr*fp.size()];
+    for(int i=0; i < fp.size(); i++) {
+	    int num = fp[i];
+	    for(int j=0; j<n_arr; j++) {
+		    arr[i*n_arr+j] = (num & (0x01 << j)) ? 1 : 0;
+	    }
+    }
+    
+    int new_size = n_arr *fp.size() / factor;
+    int new_arr[new_size];
+    for(int i=0; i < new_size; i++) {
+	    new_arr[i] = 0;
+    }
+
+    for(int i = 0; i < n_arr*fp.size(); i++) {
+	    if(arr[i] == 1) {
+		    int pos = i % new_size;
+		    new_arr[pos] = 1;
+	    }
+    }
+
+    vector<int> new_fp(fp.size()/factor);
+    // resize here
+    for(int i=0; i < new_size; i++) {
+	    int int_offset = i / n_arr;
+	    int inner_pos = i % n_arr;
+	    if(new_arr[i] == 1) {
+	       new_fp[int_offset] += pow(2.0, inner_pos);
+	    }
+    }
+
+    std::cout << "new fp:";
+    for(int i=0; i < new_fp.size(); i++) {
+	    std::cout << new_fp[i] << " ";
+    }
+    std::cout << std::endl;
+
+    return new_fp;
 }
 
 } // namespace fastsim

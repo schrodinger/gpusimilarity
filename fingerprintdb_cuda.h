@@ -81,7 +81,7 @@ void top_results_bubble_sort(std::vector<int>& indices,
         std::vector<float>& scores, int number_required);
 
 
-int fold_fingerprint(int fp);
+std::vector<int> fold_fingerprint(std::vector<int> &, const int);
 
 } // namespace fastsim
 

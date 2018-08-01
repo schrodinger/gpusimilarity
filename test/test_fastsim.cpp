@@ -76,9 +76,11 @@ BOOST_AUTO_TEST_CASE(CPUSort)
 
 BOOST_AUTO_TEST_CASE(FoldFingerprint)
 {
-    int answer = fold_fingerprint(0);
-    BOOST_CHECK_EQUAL(answer, 0);
-
-    answer = fold_fingerprint(1);
-    BOOST_CHECK_EQUAL(answer, 1);
+    int factor = 2;
+    vector<int> fp = {32, 24, 11, 7};
+    vector<int> ref_answer = {43, 31};
+    vector<int> answer = fold_fingerprint(fp, factor);
+    for(int i=0; i<ref_answer.size(); i++){
+    	BOOST_CHECK_EQUAL(answer[i], ref_answer[i]);
+    }
 }
