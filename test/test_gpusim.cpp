@@ -30,7 +30,9 @@ BOOST_AUTO_TEST_CASE(CompareGPUtoCPU)
     // Only run this if there's a GPU available
     // if(!schrodinger::gpgpu::is_any_gpu_available()) return;
 
-    GPUSimServer server("small.fsim");
+    QStringList db_fnames;
+    db_fnames << "small.fsim";
+    GPUSimServer server(db_fnames);
     // Fetch a fingerprint to search against, this should always
     // guarantee a 100% match
     const Fingerprint& fp = server.getFingerprint(std::rand() % 20);

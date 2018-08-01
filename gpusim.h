@@ -23,7 +23,7 @@ class GPUSimServer : public QObject
      * clients.  The server will contain the data in the provided .fsim file.
      * @param database_fname: .fsim file storing relevant data in binary format
      */
-    GPUSimServer(const QString& database_fname);
+    GPUSimServer(const QStringList& database_fnames);
 
     /**
      * @brief
@@ -62,8 +62,7 @@ class GPUSimServer : public QObject
     bool usingGPU(){ return m_use_gpu; }
 
   private:
-    std::shared_ptr<FingerprintDB> m_database;
-    std::shared_ptr<QLocalServer> m_server;
+    std::vector<std::shared_ptr<FingerprintDB>> m_databases;
     bool m_use_gpu = true;
 
     bool setupSocket(const QString& database_fname);

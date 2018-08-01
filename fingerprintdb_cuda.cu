@@ -5,6 +5,7 @@
  * Copyright Schrodinger LLC, All Rights Reserved.
  --------------------------------------------------------------------------- */
 
+#include <cuda_runtime.h>
 #include "fingerprintdb_cuda.h"
 
 #include <iostream>
@@ -134,20 +135,33 @@ FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count, const char* data,
             vector<char*>& smiles_vector,
             std::vector<char*>& ids_vector)
 {
+
     m_priv = new FingerprintDBPriv();
     m_fp_intsize = fp_bitcount / (sizeof(int)*8);  //ASSUMES INT-DIVISIBLE SIZE
     m_count = fp_count;
 
-    int data_size = (fp_bitcount/(sizeof(int)*8))*m_count;
+    int m_data_size = (fp_bitcount/(sizeof(int)*8))*m_count;
     const int* int_data = (const int*)data;
-    m_priv->data.assign(int_data, int_data+data_size);
-    m_priv->d_data = m_priv->data;
+    m_priv->data.assign(int_data, int_data+m_data_size);
 
     // Optimization, take the underlying storage of the incoming vectors, 
     // which won't be used again in calling code
     m_smiles.swap(smiles_vector);
     m_ids.swap(ids_vector);
 
+}
+
+
+void FingerprintDB::copyToGPU(size_t memory_max)
+{
+    std::cerr << m_data_size << "/" << memory_max << std::endl;
+    if(m_data_size > memory_max) 
+    {
+        std::cerr << "Shrinking db to fit in gpu memory";
+    } else {
+        std::cerr << "entire db fits in memory, not shrinking" << std::endl;
+        m_priv->d_data = m_priv->data;
+    }
 }
 
 
@@ -245,6 +259,14 @@ float FingerprintDB::tanimoto_similarity_cpu(const Fingerprint& fp1,
     }
 
     return (float)common / (float)(total-common);
+}
+
+size_t get_available_gpu_memory()
+{
+    size_t free=0, total=0;
+    cudaMemGetInfo(&free, &total);
+
+    return free;
 }
 
 std::vector<int> fold_fingerprint(std::vector<int> &fp, const int factor)

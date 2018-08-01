@@ -241,19 +241,20 @@ def main():
     app = QtCore.QCoreApplication([])
 
     procs = []
+    # Start the GPU backend
+    cmdline = [FASTSIM_EXEC]
+    if args.cpu_only:
+        cmdline.append('--cpu_only')
+    cmdline += args.dbnames
+    procs.append(subprocess.Popen(cmdline))
     for dbname in args.dbnames:
-        # Start the GPU backend
-        cmdline = [GPUSIM_EXEC, dbname]
-        if args.cpu_only:
-            cmdline.append('--cpu_only')
-        procs.append(subprocess.Popen(cmdline))
-        socket = QtNetwork.QLocalSocket(app)
         dbname_noext = os.path.splitext(os.path.basename(dbname))[0]
-        sockets[dbname_noext] = socket
+        socket = QtNetwork.QLocalSocket(app)
         while not socket.isValid():
             socket_name = os.path.splitext(os.path.basename(dbname))[0]
             socket.connectToServer(socket_name)
             time.sleep(0.3)
+        sockets[dbname_noext] = socket
 
     if args.http_interface:
         handler = GPUSimHTTPHandler

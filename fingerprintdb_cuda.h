@@ -25,6 +25,15 @@ class FingerprintDB
                   std::vector<char*>& smiles_vector,
                   std::vector<char*>& ids_vector);
 
+    /**
+     * @brief
+     * Copy fingerprint memory up to the GPU, shrinking if necessary to fit inside
+     * memory_max amount of memory
+     *
+     * @param memory_max: Maximum amount of memory this DB can use
+     */
+    void copyToGPU(size_t memory_max);
+
     // Total number of fingerprints in DB
     unsigned int count() const { return m_count; };
 
@@ -58,8 +67,10 @@ class FingerprintDB
             unsigned int return_count) const;
 
 
-    char* getSmiles(int index) { return m_smiles[index]; }
-    char* getID(int index) { return m_ids[index]; }
+    char* getSmiles(int index) const { return m_smiles[index]; }
+    char* getID(int index) const { return m_ids[index]; }
+
+    size_t getFingerprintDataSize() const { return m_data_size; };
 
   protected:
     // INTERNAL:  A CPU implementation of tanimoto similarity for validation
@@ -68,10 +79,13 @@ class FingerprintDB
 
     FingerprintDBPriv* m_priv;
     int m_count, m_fp_intsize;
+    size_t m_data_size;
     std::vector<char*> m_smiles;
     std::vector<char*> m_ids;
 
 };
+
+size_t get_available_gpu_memory();
 
 /**
  * @brief
@@ -79,7 +93,6 @@ class FingerprintDB
  */
 void top_results_bubble_sort(std::vector<int>& indices,
         std::vector<float>& scores, int number_required);
-
 
 std::vector<int> fold_fingerprint(std::vector<int> &, const int);
 
