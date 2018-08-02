@@ -276,9 +276,7 @@ std::vector<int> fold_fingerprint(std::vector<int> &fp, const int factor)
     for(int i=0; i < new_size; i++) {
 	    int int_offset = i / n_arr;
 	    int inner_pos = i % n_arr;
-	    if(new_arr[i] == 1) {
-	       new_fp[int_offset] += pow(2.0, inner_pos);
-	    }
+	    new_fp[int_offset] += (1 << inner_pos) * new_arr[i];
     }
 
     std::cout << "new fp:";

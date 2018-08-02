@@ -83,4 +83,9 @@ BOOST_AUTO_TEST_CASE(FoldFingerprint)
     for(int i=0; i<ref_answer.size(); i++){
     	BOOST_CHECK_EQUAL(answer[i], ref_answer[i]);
     }
+
+    factor = 4;
+    answer = fold_fingerprint(fp, factor);
+    BOOST_CHECK_EQUAL(answer.size(), 1);
+    BOOST_CHECK_EQUAL(answer[0], 63);
 }
