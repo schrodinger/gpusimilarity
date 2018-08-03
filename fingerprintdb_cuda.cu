@@ -261,9 +261,9 @@ std::vector<int> fold_fingerprint(std::vector<int> &fp, const int factor)
         int bit_on = (fp[int_offset] & (0x01 << inner_pos)) ? 1 : 0;
 
         int new_pos = pos % new_size;
-	    int new_int_offset = new_pos / INT_SIZE;
-	    int new_inner_pos = new_pos % INT_SIZE;
-	    new_fp[new_int_offset] |= (1 << new_inner_pos) * bit_on;
+        int new_int_offset = new_pos / INT_SIZE;
+        int new_inner_pos = new_pos % INT_SIZE;
+        new_fp[new_int_offset] |= (1 << new_inner_pos) * bit_on;
     }
 
     return new_fp;
