@@ -8,21 +8,21 @@
  */
 
 #define BOOST_TEST_DYN_LINK
-#define BOOST_TEST_MODULE fast_triad_alignment
+#define BOOST_TEST_MODULE gpusimilarity
 
 #include <cstdlib>
 #include <vector>
 
 #include <boost/test/unit_test.hpp>
 
-#include "fastsim.h"
+#include "gpusim.h"
 #include "fingerprintdb_cuda.h"
 
 
-using namespace fastsim;
+using namespace gpusim;
 using std::vector;
 
-using fastsim::FastSimServer;
+using gpusim::GPUSimServer;
 
 BOOST_AUTO_TEST_CASE(CompareGPUtoCPU)
 {
@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE(CompareGPUtoCPU)
     // Only run this if there's a GPU available
     // if(!schrodinger::gpgpu::is_any_gpu_available()) return;
 
-    FastSimServer server("small.fsim");
+    GPUSimServer server("small.fsim");
     // Fetch a fingerprint to search against, this should always
     // guarantee a 100% match
     const Fingerprint& fp = server.getFingerprint(std::rand() % 20);
@@ -72,4 +72,20 @@ BOOST_AUTO_TEST_CASE(CPUSort)
     BOOST_CHECK_EQUAL(indices[3], 1);
     BOOST_CHECK_EQUAL(scores[3], 3);
 
+}
+
+BOOST_AUTO_TEST_CASE(FoldFingerprint)
+{
+    int factor = 2;
+    vector<int> fp = {32, 24, 11, 7};
+    vector<int> ref_answer = {43, 31};
+    vector<int> answer = fold_fingerprint(fp, factor);
+    for(int i=0; i<ref_answer.size(); i++){
+    	BOOST_CHECK_EQUAL(answer[i], ref_answer[i]);
+    }
+
+    factor = 4;
+    answer = fold_fingerprint(fp, factor);
+    BOOST_CHECK_EQUAL(answer.size(), 1);
+    BOOST_CHECK_EQUAL(answer[0], 63);
 }

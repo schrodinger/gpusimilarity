@@ -1,12 +1,12 @@
 /* -------------------------------------------------------------------------
- * Implements fastsim::FastSimServer
+ * Implements gpusim::GPUSimServer
  * Reads a binary .fsim file and creates a FingerprintDB on GPU.  Uses a local
  * socket to communicate with querying processes.  Fingerprint agnostic.
  *
  *
  * Copyright Schrodinger LLC, All Rights Reserved.
  --------------------------------------------------------------------------- */
-#include "fastsim.h"
+#include "gpusim.h"
 
 #include <QByteArray>
 #include <QCoreApplication>
@@ -25,12 +25,12 @@
 
 using std::shared_ptr;
 using std::vector;
-using fastsim::FingerprintDB;
-using fastsim::Fingerprint;
+using gpusim::FingerprintDB;
+using gpusim::Fingerprint;
 
-namespace fastsim
+namespace gpusim
 {
-FastSimServer::FastSimServer(const QString& database_fname)
+GPUSimServer::GPUSimServer(const QString& database_fname)
 {
 
     // Read from .fsim file into byte arrays
@@ -52,7 +52,7 @@ FastSimServer::FastSimServer(const QString& database_fname)
     qInfo() << "Ready for searches.";
 };
 
-void FastSimServer::extractData(const QString& database_fname,
+void GPUSimServer::extractData(const QString& database_fname,
                                 QSize& fingerprint_size,
                                 QByteArray& fingerprint_data,
                                 vector<char*>& smiles_vector,
@@ -87,7 +87,7 @@ void FastSimServer::extractData(const QString& database_fname,
     }
 }
 
-bool FastSimServer::setupSocket(const QString& database_fname)
+bool GPUSimServer::setupSocket(const QString& database_fname)
 {
     m_server.reset(new QLocalServer());
     QFileInfo file_info(database_fname);
@@ -104,12 +104,12 @@ bool FastSimServer::setupSocket(const QString& database_fname)
     }
 
     QLocalServer::connect(m_server.get(), &QLocalServer::newConnection, this,
-                          &FastSimServer::newConnection);
+                          &GPUSimServer::newConnection);
 
     return true;
 }
 
-void FastSimServer::similaritySearch(const Fingerprint& reference,
+void GPUSimServer::similaritySearch(const Fingerprint& reference,
         vector<char*>& results_smiles, vector<char*>& results_ids,
         vector<float>& results_scores, unsigned int return_count, CalcType calc_type)
 {
@@ -133,16 +133,16 @@ void FastSimServer::similaritySearch(const Fingerprint& reference,
            (long int) tval_result.tv_sec, (long int) tval_result.tv_usec);
 };
 
-void FastSimServer::newConnection()
+void GPUSimServer::newConnection()
 {
     QLocalSocket* clientConnection = m_server->nextPendingConnection();
     QObject::connect(clientConnection, &QLocalSocket::disconnected,
                      clientConnection, &QLocalSocket::deleteLater);
     QObject::connect(clientConnection, &QLocalSocket::readyRead, this,
-                     &FastSimServer::incomingSearchRequest);
+                     &GPUSimServer::incomingSearchRequest);
 }
 
-void FastSimServer::incomingSearchRequest()
+void GPUSimServer::incomingSearchRequest()
 {
     auto clientConnection = static_cast<QLocalSocket*>(sender());
 
@@ -193,9 +193,9 @@ void FastSimServer::incomingSearchRequest()
 }
 
 
-Fingerprint FastSimServer::getFingerprint(const int index)
+Fingerprint GPUSimServer::getFingerprint(const int index)
 {
     return m_database->getFingerprint(index);
 }
 
-} // end fastsim
+} // end gpusim

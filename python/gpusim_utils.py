@@ -7,8 +7,8 @@ down-stream applications use your preferred method.
 NOTE:  You can speed up fingerprint creation using ipyparallel
 To do this, it requires a virtualenv with ipyparallel installed
 (via pip).  After sourcing the virtualenv, you can then create DBs with:
-    python3 fastsim_createdb.py input.smi
-YOU MUST START ipcluster from vcs-src/fastsim/python
+    python3 gpusim_createdb.py input.smi
+YOU MUST START ipcluster from vcs-src/gpusim/python
 """
 
 from rdkit import Chem, DataStructs

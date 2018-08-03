@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------
- * Implements fastsim::FingerprintDB CUDA enabled similarity
+ * Implements gpusim::FingerprintDB CUDA enabled similarity
  * scoring
  *
  * Copyright Schrodinger LLC, All Rights Reserved.
@@ -8,6 +8,7 @@
 #include "fingerprintdb_cuda.h"
 
 #include <iostream>
+#include <cmath>
 
 #include <algorithm>
 #include <cuda_runtime_api.h>
@@ -19,7 +20,7 @@ using std::vector;
 using thrust::device_vector;
 
 
-namespace fastsim
+namespace gpusim
 {
 
 typedef device_vector<int> DFingerprint;
@@ -246,5 +247,26 @@ float FingerprintDB::tanimoto_similarity_cpu(const Fingerprint& fp1,
     return (float)common / (float)(total-common);
 }
 
+std::vector<int> fold_fingerprint(std::vector<int> &fp, const int factor)
+{
+    vector<int> new_fp(fp.size()/factor);
+    const int INT_SIZE = sizeof(int) * 8;
+    const int original_size = INT_SIZE * fp.size();
+    // Make sure the new_size is always int-sized
+    const int new_size = INT_SIZE * (fp.size() / factor);
+    // resize here
+    for(int pos=0; pos < original_size; pos++) {
+        int int_offset = pos / INT_SIZE;
+        int inner_pos = pos % INT_SIZE;
+        int bit_on = (fp[int_offset] & (0x01 << inner_pos)) ? 1 : 0;
 
-} // namespace fastsim
+        int new_pos = pos % new_size;
+        int new_int_offset = new_pos / INT_SIZE;
+        int new_inner_pos = new_pos % INT_SIZE;
+        new_fp[new_int_offset] |= (1 << new_inner_pos) * bit_on;
+    }
+
+    return new_fp;
+}
+
+} // namespace gpusim

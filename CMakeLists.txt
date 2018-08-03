@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10.2 FATAL_ERROR)
-project(FastSimProject VERSION 1.0.0.0 DESCRIPTION "fingerpring similarity searching" LANGUAGES CXX CUDA)
+project(GPUSimProject VERSION 1.0.0.0 DESCRIPTION "fingerpring similarity searching" LANGUAGES CXX CUDA)
 include(CTest)
 include(GNUInstallDirs)
 
@@ -54,35 +54,37 @@ if (DOXYGEN_FOUND) # make doc_doxygen
         VERBATIM)
 endif()
 
-add_library(fastsim fastsim.cpp fingerprintdb_cuda.cu)
-target_include_directories(fastsim PUBLIC
+add_library(gpusim gpusim.cpp fingerprintdb_cuda.cu)
+target_include_directories(gpusim PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<INSTALL_INTERFACE:include>)
 
 
-add_executable(fastsimserver main.cpp)
+add_executable(gpusimserver main.cpp)
 # Force C++11
-target_compile_features(fastsimserver PRIVATE cxx_override)
+target_compile_features(gpusimserver PRIVATE cxx_override)
 
 # Force -fPIC on executable. This is Qt bug.
 # https://bugreports.qt.io/browse/QTBUG-51593
 # https://cmake.org/Bug/view.php?id=9659
 # https://gitlab.kitware.com/cmake/cmake/issues/16002
 if(Qt5_POSITION_INDEPENDENT_CODE)
-  target_compile_options(fastsimserver PRIVATE -fPIC)
+  target_compile_options(gpusimserver PRIVATE -fPIC)
 endif()
 
-target_link_libraries(fastsim Qt5::Network)
-target_link_libraries(fastsimserver fastsim)
+target_link_libraries(gpusim Qt5::Network)
+target_link_libraries(gpusimserver gpusim)
 
-install(TARGETS fastsimserver RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(TARGETS fastsim EXPORT fastsimConfig
+install(TARGETS gpusimserver RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS gpusim EXPORT gpusimConfig
     ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(FILES fastsim.h types.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(EXPORT fastsimConfig DESTINATION share/fastsim/cmake)
-export(TARGETS fastsim FILE fastsimConfig.cmake)
+install(FILES gpusim.h types.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(EXPORT gpusimConfig DESTINATION share/gpusim/cmake)
+export(TARGETS gpusim FILE gpusimConfig.cmake)
+
+file(COPY "python" DESTINATION ".")
 
 option(BUILD_ON_CHROOT_CENTOS6 "" false)
 if(BUILD_ON_CHROOT_CENTOS6)

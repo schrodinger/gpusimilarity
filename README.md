@@ -52,24 +52,24 @@ The result is in bld/doc/html
 ## Running
 ### For basic json-response http endpoint:
 From build directory:
-`python3 ${SRC_DIR}/python/fastsim_server.py <fingerprint fsim file>`
+`python3 ${SRC_DIR}/python/gpusim_server.py <fingerprint fsim file>`
 
 ### For testing (insecure):
 From build directory:
-`python3 ${SRC_DIR}/python/fastsim_server.py <fingerprint fsim file> --http_interface`
+`python3 ${SRC_DIR}/python/gpusim_server.py <fingerprint fsim file> --http_interface`
 
 ### For generating databases:
 Easiest from rdkit conda with pyqt installed:
 
 From source python directory:
-```python3 fastsim_createdb.py <input smi.gz file> <fingerprint fsim file>```
+```python3 gpusim_createdb.py <input smi.gz file> <fingerprint fsim file>```
 
 ### For debugging Cuda server, avoiding python/http server altogether:
 ```bash
 From build directory:
-./fastsimserver <dbname>.fsim
-python3 python ${SRC_DIR}/python/fastsim_search.py <dbname>
+./gpusimserver <dbname>.fsim
+python3 python ${SRC_DIR}/python/gpusim_search.py <dbname>
 ```
-Note:  No .fsim extension is used for fastsim_search.py
+Note:  No .fsim extension is used for gpusim_search.py
 
 This may be useful to determine if the backend is having Cuda/GPU problems.
