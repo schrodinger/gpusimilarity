@@ -1,5 +1,4 @@
-#ifndef FASTSIMSERVER_H
-#define FASTSIMSERVER_H
+#pragma once
 
 #include <memory>
 #include <QObject>
@@ -10,21 +9,21 @@ class QSize;
 class QString;
 class QLocalServer;
 
-namespace fastsim
+namespace gpusim
 {
 class FingerprintDB;
 enum class CalcType {GPU, CPU};
 
-class FastSimServer : public QObject
+class GPUSimServer : public QObject
 {
   public:
     /**
      * @brief
-     * Start a FastSimServer running on a local socket to communicate with
+     * Start a GPUSimServer running on a local socket to communicate with
      * clients.  The server will contain the data in the provided .fsim file.
      * @param database_fname: .fsim file storing relevant data in binary format
      */
-    FastSimServer(const QString& database_fname);
+    GPUSimServer(const QString& database_fname);
 
     /**
      * @brief
@@ -74,5 +73,3 @@ class FastSimServer : public QObject
                      std::vector<char*>& ids_vector);
 };
 }
-
-#endif

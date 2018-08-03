@@ -4,7 +4,7 @@
 #include <vector>
 #include <utility>
 
-namespace fastsim
+namespace gpusim
 {
 
 typedef std::pair<std::vector<char*>, std::vector<float> > SimResults;

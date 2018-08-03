@@ -1,7 +1,7 @@
 import sys
 from PyQt5 import QtCore, QtNetwork
 
-from fastsim_utils import smiles_to_fingerprint_bin
+from gpusim_utils import smiles_to_fingerprint_bin
 
 
 def main():

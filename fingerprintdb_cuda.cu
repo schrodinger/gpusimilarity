@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------
- * Implements fastsim::FingerprintDB CUDA enabled similarity
+ * Implements gpusim::FingerprintDB CUDA enabled similarity
  * scoring
  *
  * Copyright Schrodinger LLC, All Rights Reserved.
@@ -20,7 +20,7 @@ using std::vector;
 using thrust::device_vector;
 
 
-namespace fastsim
+namespace gpusim
 {
 
 typedef device_vector<int> DFingerprint;
@@ -269,4 +269,4 @@ std::vector<int> fold_fingerprint(std::vector<int> &fp, const int factor)
     return new_fp;
 }
 
-} // namespace fastsim
+} // namespace gpusim

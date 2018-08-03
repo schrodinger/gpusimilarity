@@ -15,14 +15,14 @@
 
 #include <boost/test/unit_test.hpp>
 
-#include "fastsim.h"
+#include "gpusim.h"
 #include "fingerprintdb_cuda.h"
 
 
-using namespace fastsim;
+using namespace gpusim;
 using std::vector;
 
-using fastsim::FastSimServer;
+using gpusim::GPUSimServer;
 
 BOOST_AUTO_TEST_CASE(CompareGPUtoCPU)
 {
@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE(CompareGPUtoCPU)
     // Only run this if there's a GPU available
     // if(!schrodinger::gpgpu::is_any_gpu_available()) return;
 
-    FastSimServer server("small.fsim");
+    GPUSimServer server("small.fsim");
     // Fetch a fingerprint to search against, this should always
     // guarantee a 100% match
     const Fingerprint& fp = server.getFingerprint(std::rand() % 20);

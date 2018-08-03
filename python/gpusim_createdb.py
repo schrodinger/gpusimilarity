@@ -1,6 +1,6 @@
 """
-fastsim_createdb.py
-Use this to create a serialized data file to be used with the fastsim backend.
+gpusim_createdb.py
+Use this to create a serialized data file to be used with the gpusim backend.
 
 NOTE:  GPGPU backend requires fingerprint size to be sizeof(int) divisible
 """
@@ -8,7 +8,7 @@ NOTE:  GPGPU backend requires fingerprint size to be sizeof(int) divisible
 from PyQt5 import QtCore
 import gzip
 
-import fastsim_utils
+import gpusim_utils
 
 
 def parse_args():
@@ -54,7 +54,7 @@ def main():
     lines = input_fhandle.readlines(read_bytes)
     print(len(lines))
     while lines != []:
-        rows = fastsim_utils.split_lines_add_fp(
+        rows = gpusim_utils.split_lines_add_fp(
             lines, dview=dview, trust_smiles=args.trustSmiles)
         filtered_rows = [row for row in rows if row is not None]
         count += len(filtered_rows)
@@ -72,7 +72,7 @@ def main():
     # Set version so that files will be usable cross-release
     qds.setVersion(QtCore.QDataStream.Qt_5_2)
 
-    size = QtCore.QSize(fastsim_utils.BITCOUNT, count)
+    size = QtCore.QSize(gpusim_utils.BITCOUNT, count)
     qds << size
     qds << fp_byte_data
     qds << smi_byte_data

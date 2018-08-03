@@ -1,5 +1,5 @@
 """
-This is a sample HTTP server interface with the FastSim backend,
+This is a sample HTTP server interface with the GPUSim backend,
 which takes fingerprints as a JSON and returns results in JSON form.
 """
 
@@ -15,23 +15,23 @@ from socketserver import ThreadingMixIn
 import cgi
 import json
 
-import fastsim_utils
+import gpusim_utils
 
 SCRIPT_DIR = os.path.split(__file__)[0]
 BITCOUNT = 1024
 sockets = {}
 
 try:
-    from fastsim_server_loc import FASTSIM_EXEC  # Used in schrodinger env
+    from gpusim_server_loc import GPUSIM_EXEC  # Used in schrodinger env
 except ImportError:
-    FASTSIM_EXEC  = './fastsimserver'
+    GPUSIM_EXEC  = './gpusimserver'
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     """Use threads to handle requests"""
 
 
-class FastSimHandler(BaseHTTPRequestHandler):
+class GPUSimHandler(BaseHTTPRequestHandler):
 
     """
     Retrieve the smiles passed into the form and the results from the backend
@@ -48,7 +48,7 @@ class FastSimHandler(BaseHTTPRequestHandler):
         return form["smiles"].value.strip(), int(form["return_count"].value)
 
     def get_data(self, socket_name, src_smiles, return_count):
-        fp_binary = fastsim_utils.smiles_to_fingerprint_bin(src_smiles)
+        fp_binary = gpusim_utils.smiles_to_fingerprint_bin(src_smiles)
         fp_qba = QtCore.QByteArray(fp_binary)
 
         output_qba = QtCore.QByteArray()
@@ -132,13 +132,13 @@ class FastSimHandler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(results_json).encode('utf8'))
 
 
-class FastSimHTTPHandler(FastSimHandler):
+class GPUSimHTTPHandler(GPUSimHandler):
     def _generateImageIfNeeded(self, fullpath):
         if (self.path.startswith('smiles_') and not os.path.exists(fullpath)):
             safe_smi = self.path.replace('smiles_', '').replace('.png', '')
             smi = safe_smi.replace('_-1-_', '/').replace(
                 '_-2-_', '\\').replace('_-3-_', '#')
-            fastsim_utils.smiles_to_image_file(smi, fullpath)
+            gpusim_utils.smiles_to_image_file(smi, fullpath)
 
     def write_results_html(self, src_smiles, smiles, scores, ids):
         for smi, score, cid in zip(smiles, scores, ids):
@@ -212,7 +212,7 @@ class FastSimHTTPHandler(FastSimHandler):
 
 def parse_args():
     import argparse
-    parser = argparse.ArgumentParser(description="Sample FastSim Server - "
+    parser = argparse.ArgumentParser(description="Sample GPUSim Server - "
             "run an HTTP server that loads fingerprint data onto GPU and " #noqa
             "responds to queries to find most similar fingperints.") #noqa
     parser.add_argument('dbnames', help=".fsim files containing fingerprint "
@@ -239,7 +239,7 @@ def main():
     procs = []
     for dbname in args.dbnames:
         # Start the GPU backend
-        cmdline = [FASTSIM_EXEC, dbname]
+        cmdline = [GPUSIM_EXEC, dbname]
         if args.cpu_only:
             cmdline.append('--cpu_only')
         procs.append(subprocess.Popen(cmdline))
@@ -252,9 +252,9 @@ def main():
             time.sleep(0.3)
 
     if args.http_interface:
-        handler = FastSimHTTPHandler
+        handler = GPUSimHTTPHandler
     else:
-        handler = FastSimHandler
+        handler = GPUSimHandler
     server = ThreadedHTTPServer((args.hostname, args.port), handler)
     print("Running HTTP server...")
     server.serve_forever()

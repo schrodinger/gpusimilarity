@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------
- * Declares fastsim::FingerprintDB CUDA enabled similarity scoring
+ * Declares gpusim::FingerprintDB CUDA enabled similarity scoring
  *
  * Copyright Schrodinger LLC, All Rights Reserved.
  --------------------------------------------------------------------------- */
@@ -14,7 +14,7 @@
 class QByteArray;
 class QSize;
 
-namespace fastsim
+namespace gpusim
 {
 class FingerprintDBPriv;
 
@@ -83,6 +83,6 @@ void top_results_bubble_sort(std::vector<int>& indices,
 
 std::vector<int> fold_fingerprint(std::vector<int> &, const int);
 
-} // namespace fastsim
+} // namespace gpusim
 
 #endif
