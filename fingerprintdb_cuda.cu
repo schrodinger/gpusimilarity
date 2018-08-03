@@ -252,13 +252,13 @@ std::vector<int> fold_fingerprint(std::vector<int> &fp, const int factor)
     vector<int> new_fp(fp.size()/factor);
     const int INT_SIZE = sizeof(int) * 8;
     const int original_size = INT_SIZE * fp.size();
-    const int new_size = INT_SIZE * fp.size() / factor;
+    // Make sure the new_size is always int-sized
+    const int new_size = INT_SIZE * (fp.size() / factor);
     // resize here
     for(int pos=0; pos < original_size; pos++) {
         int int_offset = pos / INT_SIZE;
         int inner_pos = pos % INT_SIZE;
-        int bit_on = 0;
-        bit_on = (fp[int_offset] & (0x01 << inner_pos)) ? 1 : 0;
+        int bit_on = (fp[int_offset] & (0x01 << inner_pos)) ? 1 : 0;
 
         int new_pos = pos % new_size;
 	    int new_int_offset = new_pos / INT_SIZE;
