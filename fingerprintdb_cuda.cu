@@ -247,43 +247,29 @@ float FingerprintDB::tanimoto_similarity_cpu(const Fingerprint& fp1,
     return (float)common / (float)(total-common);
 }
 
+inline void set_bit_val(int pos_in_val, char val)
+{
+
+}
+
 std::vector<int> fold_fingerprint(std::vector<int> &fp, const int factor)
 {
-    int n_arr = sizeof(int)*CHAR_BIT;
-    int arr[n_arr*fp.size()];
-    for(int i=0; i < fp.size(); i++) {
-	    int num = fp[i];
-	    for(int j=0; j<n_arr; j++) {
-		    arr[i*n_arr+j] = (num & (0x01 << j)) ? 1 : 0;
-	    }
-    }
-    
-    int new_size = n_arr *fp.size() / factor;
-    int new_arr[new_size];
-    for(int i=0; i < new_size; i++) {
-	    new_arr[i] = 0;
-    }
-
-    for(int i = 0; i < n_arr*fp.size(); i++) {
-	    if(arr[i] == 1) {
-		    int pos = i % new_size;
-		    new_arr[pos] = 1;
-	    }
-    }
-
     vector<int> new_fp(fp.size()/factor);
+    const int INT_SIZE = sizeof(int) * 8;
+    const int original_size = INT_SIZE * fp.size();
+    const int new_size = INT_SIZE * fp.size() / factor;
     // resize here
-    for(int i=0; i < new_size; i++) {
-	    int int_offset = i / n_arr;
-	    int inner_pos = i % n_arr;
-	    new_fp[int_offset] += (1 << inner_pos) * new_arr[i];
-    }
+    for(int pos=0; pos < original_size; pos++) {
+        int int_offset = pos / INT_SIZE;
+        int inner_pos = pos % INT_SIZE;
+        int bit_on = 0;
+        bit_on = (fp[int_offset] & (0x01 << inner_pos)) ? 1 : 0;
 
-    std::cout << "new fp:";
-    for(int i=0; i < new_fp.size(); i++) {
-	    std::cout << new_fp[i] << " ";
+        int new_pos = pos % new_size;
+	    int new_int_offset = new_pos / INT_SIZE;
+	    int new_inner_pos = new_pos % INT_SIZE;
+	    new_fp[new_int_offset] |= (1 << new_inner_pos) * bit_on;
     }
-    std::cout << std::endl;
 
     return new_fp;
 }
