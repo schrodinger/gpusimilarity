@@ -1,7 +1,7 @@
 import requests
 from multicorn import ForeignDataWrapper
 
-FASTSIM_ENDPOINT = '{0}:{1}/similarity_search_json_{2}'
+GPUSIM_ENDPOINT = '{0}:{1}/similarity_search_json_{2}'
 
 
 class GPUSimilarityFDW(ForeignDataWrapper):
@@ -20,7 +20,7 @@ class GPUSimilarityFDW(ForeignDataWrapper):
 
         data = {'smiles': input_smiles, 'return_count': self.max_results}
 
-        endpoint = FASTSIM_ENDPOINT.format(server, port, input_db)
+        endpoint = GPUSIM_ENDPOINT.format(server, port, input_db)
         response = requests.post(endpoint, data)
         if not response.ok:
             raise RuntimeError("Server connection failed")
