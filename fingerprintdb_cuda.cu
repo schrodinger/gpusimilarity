@@ -247,11 +247,6 @@ float FingerprintDB::tanimoto_similarity_cpu(const Fingerprint& fp1,
     return (float)common / (float)(total-common);
 }
 
-inline void set_bit_val(int pos_in_val, char val)
-{
-
-}
-
 std::vector<int> fold_fingerprint(std::vector<int> &fp, const int factor)
 {
     vector<int> new_fp(fp.size()/factor);
