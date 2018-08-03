@@ -8,7 +8,7 @@
  */
 
 #define BOOST_TEST_DYN_LINK
-#define BOOST_TEST_MODULE fast_triad_alignment
+#define BOOST_TEST_MODULE gpusimilarity
 
 #include <cstdlib>
 #include <vector>
@@ -72,4 +72,20 @@ BOOST_AUTO_TEST_CASE(CPUSort)
     BOOST_CHECK_EQUAL(indices[3], 1);
     BOOST_CHECK_EQUAL(scores[3], 3);
 
+}
+
+BOOST_AUTO_TEST_CASE(FoldFingerprint)
+{
+    int factor = 2;
+    vector<int> fp = {32, 24, 11, 7};
+    vector<int> ref_answer = {43, 31};
+    vector<int> answer = fold_fingerprint(fp, factor);
+    for(int i=0; i<ref_answer.size(); i++){
+    	BOOST_CHECK_EQUAL(answer[i], ref_answer[i]);
+    }
+
+    factor = 4;
+    answer = fold_fingerprint(fp, factor);
+    BOOST_CHECK_EQUAL(answer.size(), 1);
+    BOOST_CHECK_EQUAL(answer[0], 63);
 }
