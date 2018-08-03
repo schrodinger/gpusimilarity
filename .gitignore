@@ -8,7 +8,6 @@
 
 *.o
 Makefile
-fastsimserver
 .qmake.stash
 smiles_*png
 build
