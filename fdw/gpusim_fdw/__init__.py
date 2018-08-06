@@ -18,18 +18,28 @@ class GPUSimilarityFDW(ForeignDataWrapper):
         server = options['server']
         port = options['port']
 
-        data = {'smiles': input_smiles, 'return_count': self.max_results}
-
-        endpoint = GPUSIM_ENDPOINT.format(server, port, input_db)
-        response = requests.post(endpoint, data)
-        if not response.ok:
-            raise RuntimeError("Server connection failed")
-        self.data = response.json()
+        self.query = {'smiles': input_smiles, 'return_count': self.max_results}
+        self.endpoint = GPUSIM_ENDPOINT.format(server, port, input_db)
+        self._default_smiles = input_smiles
+        self._last_query_smiles = None
 
     def execute(self, quals, columns):
+        smiles = self._default_smiles
+        for qual in quals:
+            if qual.field_name == 'query' and qual.operator == '=':
+                smiles = qual.value
+                break
+        if smiles != self._last_query_smiles:
+            self.query['smiles'] = smiles
+            response = requests.post(self.endpoint, self.query)
+            if not response.ok:
+                raise RuntimeError("Server connection failed")
+            self.data = response.json()
+            self._last_query_smiles = smiles
         for line_data in self.data:
             line = {}
             line['id'] = line_data[0]
+            line['query'] = smiles
             line['smiles'] = line_data[1]
             line['similarity'] = line_data[2]
             yield line
