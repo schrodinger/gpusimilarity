@@ -9,7 +9,6 @@ class GPUSimilarityFDW(ForeignDataWrapper):
     def __init__(self, options, columns):
         super(GPUSimilarityFDW, self).__init__(options, columns)
         self.columns = columns
-        input_smiles = options['smiles']
         # We can't rely on 'query' for this, as execute() isn't given count
         self.max_results = int(options['max_results'])
         input_db = 'all'
@@ -18,17 +17,20 @@ class GPUSimilarityFDW(ForeignDataWrapper):
         server = options['server']
         port = options['port']
 
-        self.query = {'smiles': input_smiles, 'return_count': self.max_results}
+        self.query = {'return_count': self.max_results}
         self.endpoint = GPUSIM_ENDPOINT.format(server, port, input_db)
-        self._default_smiles = input_smiles
         self._last_query_smiles = None
 
     def execute(self, quals, columns):
-        smiles = self._default_smiles
+        smiles = None
         for qual in quals:
             if qual.field_name == 'query' and qual.operator == '=':
                 smiles = qual.value
                 break
+        if smiles is None:
+            print("No query smiles given, so no results can be given.")
+            raise StopIteration
+
         if smiles != self._last_query_smiles:
             self.query['smiles'] = smiles
             response = requests.post(self.endpoint, self.query)
