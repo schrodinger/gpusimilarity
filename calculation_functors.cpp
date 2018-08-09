@@ -19,15 +19,6 @@ void TanimotoFunctorCPU::operator()(const int& fp_index) const
     m_output[fp_index] = (float)common / (float)(total-common);
 }
 
-
-/*
-    const int m_factor;
-    const int m_unfolded_fp_intsize;
-    const int m_folded_fp_intsize;
-    const int* m_unfolded;
-    const int* m_folded;
-*/
-
 void FoldFingerprintFunctorCPU::operator()(const int& fp_index) const
 {
     int* fp =  &(m_unfolded[fp_index * m_unfolded_fp_intsize]);
