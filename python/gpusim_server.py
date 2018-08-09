@@ -6,6 +6,7 @@ which takes fingerprints as a JSON and returns results in JSON form.
 import os
 import subprocess
 import time
+import tempfile
 
 from PyQt5 import QtCore, QtNetwork
 
@@ -133,6 +134,8 @@ class GPUSimHandler(BaseHTTPRequestHandler):
 
 
 class GPUSimHTTPHandler(GPUSimHandler):
+    _tmp_dir = tempfile.TemporaryDirectory()
+
     def _generateImageIfNeeded(self, fullpath):
         if (self.path.startswith('smiles_') and not os.path.exists(fullpath)):
             safe_smi = self.path.replace('smiles_', '').replace('.png', '')
@@ -169,6 +172,7 @@ class GPUSimHTTPHandler(GPUSimHandler):
                 mimetype = 'text/html'
                 sendReply = True
             if self.path.endswith(".png"):
+                fullpath = os.path.join(self._tmp_dir.name, self.path)
                 mimetype = 'image/png'
                 sendReply = True
                 self._generateImageIfNeeded(fullpath)
