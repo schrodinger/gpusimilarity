@@ -30,6 +30,8 @@ else()
     message(SEND_ERROR "The Qt5Network library could not be found!")
 endif(Qt5Network_FOUND)
 
+find_package(Qt5Concurrent REQUIRED)
+
 # Workaround issue in Qt which affects Cuda
 # ref: https://gitlab.kitware.com/cmake/cmake/issues/16915
 # convert the fpic option in Qt5::Core over to
@@ -54,7 +56,7 @@ if (DOXYGEN_FOUND) # make doc_doxygen
         VERBATIM)
 endif()
 
-add_library(gpusim gpusim.cpp fingerprintdb_cuda.cu calculation_functors.cpp)
+add_library(gpusim gpusim.cpp fingerprintdb_cuda.cpp fingerprintdb_cuda.cu calculation_functors.cpp)
 target_include_directories(gpusim PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<INSTALL_INTERFACE:include>)
@@ -72,7 +74,7 @@ if(Qt5_POSITION_INDEPENDENT_CODE)
   target_compile_options(gpusimserver PRIVATE -fPIC)
 endif()
 
-target_link_libraries(gpusim Qt5::Network)
+target_link_libraries(gpusim Qt5::Network Qt5::Concurrent)
 target_link_libraries(gpusimserver gpusim)
 
 install(TARGETS gpusimserver RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

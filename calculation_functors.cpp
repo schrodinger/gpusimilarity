@@ -4,7 +4,7 @@
 namespace gpusim
 {
 
-float TanimotoFunctorCPU::operator()(const int& fp_index) const
+void TanimotoFunctorCPU::operator()(const int& fp_index) const
 {
     int total = 0;
     int common = 0;
@@ -16,7 +16,7 @@ float TanimotoFunctorCPU::operator()(const int& fp_index) const
         common += __builtin_popcount(fp1 & fp2);
     }
 
-    return (float)common / (float)(total-common);
+    m_output[fp_index] = (float)common / (float)(total-common);
 }
 
 

@@ -4,6 +4,7 @@
 #include <thrust/device_vector.h>
 #include "cuda_types.h"
 #endif
+#include <QVector>
 #include "types.h"
 
 namespace gpusim
@@ -35,17 +36,16 @@ public:
 /**
  * Functor used to perform tanimoto similarity on CPU via std::transform
  */
-class TanimotoFunctorCPU{
+struct TanimotoFunctorCPU{
     const int* m_ref_fp;
     const int m_fp_intsize;
     const int* m_dbdata;
+    float* m_output;
 
-public:
-
-    TanimotoFunctorCPU(const gpusim::Fingerprint& ref_fp, int fp_intsize, const std::vector<int>& dbdata) : m_ref_fp(ref_fp.data()),m_fp_intsize(fp_intsize),m_dbdata(dbdata.data())
+    TanimotoFunctorCPU(const gpusim::Fingerprint& ref_fp, int fp_intsize, const std::vector<int>& dbdata, std::vector<float>& output) : m_ref_fp(ref_fp.data()),m_fp_intsize(fp_intsize),m_dbdata(dbdata.data()),m_output(output.data())
         {};
 
-    float operator()(const int& fp_index) const;
+    void operator()(const int& fp_index) const;
 };
 
 /**

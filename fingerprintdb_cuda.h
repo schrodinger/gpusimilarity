@@ -77,7 +77,8 @@ class FingerprintDB
     float tanimoto_similarity_cpu(const Fingerprint& fp1,
                                   const Fingerprint& fp2) const;
 
-    FingerprintDBPriv* m_priv;
+    std::vector<int> m_data;
+    FingerprintDBPriv* m_priv; // Used to conceal cuda types
     int m_count, m_fp_intsize;
     size_t m_data_size;
     std::vector<char*> m_smiles;

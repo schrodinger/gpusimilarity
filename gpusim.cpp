@@ -125,7 +125,6 @@ void GPUSimServer::similaritySearch(const Fingerprint& reference,
 {
     struct timeval tval_before, tval_after, tval_result;
     gettimeofday(&tval_before, nullptr);
-    qDebug() << "Searching against:  " << dbname;
 
     if(calc_type == CalcType::GPU) {
         m_databases[dbname]->search(reference, results_smiles, results_ids,
@@ -162,7 +161,6 @@ void GPUSimServer::incomingSearchRequest()
 {
     auto clientConnection = static_cast<QLocalSocket*>(sender());
     QString dbname = clientConnection->property("dbname").toString();
-    qDebug() << "Running against:  " << dbname;
 
     // Read incoming Fingerprint binary and put it in Fingerprint object
     QByteArray data = clientConnection->readAll();
