@@ -74,7 +74,7 @@ FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count, const char* data,
     m_fp_intsize = fp_bitcount / (sizeof(int)*8);  //ASSUMES INT-DIVISIBLE SIZE
     m_count = fp_count;
 
-    int m_data_size = (fp_bitcount/(sizeof(int)*8))*m_count;
+    m_data_size = m_fp_intsize*m_count;
     const int* int_data = (const int*)data;
     m_data.assign(int_data, int_data+m_data_size);
 
@@ -91,7 +91,7 @@ void FingerprintDB::copyToGPU(size_t memory_max)
     std::cerr << m_data_size << "/" << memory_max << std::endl;
     if(m_data_size > memory_max) 
     {
-        std::cerr << "Shrinking db to fit in gpu memory";
+        std::cerr << "Shrinking db to fit in gpu memory" << std::endl;
     } else {
         std::cerr << "entire db fits in memory, not shrinking" << std::endl;
         m_priv->d_data = m_data;
