@@ -1,7 +1,9 @@
 #pragma once
 
 #include <memory>
+#include <QHash>
 #include <QObject>
+#include <QString>
 #include "types.h"
 
 class QByteArray;
@@ -31,11 +33,13 @@ class GPUSimServer : public QObject
      * to the reference fingerprint provided
      *
      * @param query: Fingerprint to find closest matches to
+     * @param dbname: Which database to search against
      * @param results_smiles: Vector to store smiles of results
      * @param results_ids: Vector to store IDs of results
      * @param results_scores: Vector to store scores of results
      */
     void similaritySearch(const Fingerprint& reference,
+                          const QString& dbname,
                           std::vector<char*>& results_smiles,
                           std::vector<char*>& results_ids,
                           std::vector<float>& results_scores,
@@ -47,7 +51,7 @@ class GPUSimServer : public QObject
      * Allows you to fetch a fingerprint from the underlying DB,
      * most useful for testing.
      */
-    Fingerprint getFingerprint(const int index);
+    Fingerprint getFingerprint(const int index, const QString& dbname);
 
   public slots:
     void newConnection();
@@ -62,10 +66,10 @@ class GPUSimServer : public QObject
     bool usingGPU(){ return m_use_gpu; }
 
   private:
-    std::vector<std::shared_ptr<FingerprintDB>> m_databases;
+    QHash<QString, std::shared_ptr<FingerprintDB>> m_databases;
     bool m_use_gpu = true;
 
-    bool setupSocket(const QString& database_fname);
+    bool setupSocket(const QString& socket_name);
     void extractData(const QString& database_fname, QSize& fingerprint_size,
                      QByteArray& fingerprint_data,
                      std::vector<char*>& smiles_vector,

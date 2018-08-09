@@ -45,10 +45,13 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames)
         auto fps = std::shared_ptr<FingerprintDB>(new FingerprintDB(
                 fingerprint_size.width(), fingerprint_size.height(),
                 fingerprint_data.data(), smiles_vector, ids_vector));
-        m_databases.emplace_back(fps);
 
-        if (!setupSocket(database_fname))
+        QFileInfo file_info(database_fname);
+        QString socket_name = file_info.baseName();
+        if (!setupSocket(socket_name))
             return;
+        qDebug() << "Setting up DB:  " << socket_name;
+        m_databases[socket_name] = fps;
     }
 
     // Now that we know how much total memory is required, divvy it up
@@ -95,11 +98,9 @@ void GPUSimServer::extractData(const QString& database_fname,
     }
 }
 
-bool GPUSimServer::setupSocket(const QString& database_fname)
+bool GPUSimServer::setupSocket(const QString& socket_name)
 {
     auto server = new QLocalServer(this);
-    QFileInfo file_info(database_fname);
-    QString socket_name = file_info.baseName();
     if (!server->listen(socket_name)) {
         QString socket_location = QString("/tmp/%1").arg(socket_name);
         QFile::remove(socket_location);
@@ -118,17 +119,19 @@ bool GPUSimServer::setupSocket(const QString& database_fname)
 }
 
 void GPUSimServer::similaritySearch(const Fingerprint& reference,
+        const QString& dbname,
         vector<char*>& results_smiles, vector<char*>& results_ids,
         vector<float>& results_scores, unsigned int return_count, CalcType calc_type)
 {
     struct timeval tval_before, tval_after, tval_result;
     gettimeofday(&tval_before, nullptr);
+    qDebug() << "Searching against:  " << dbname;
 
     if(calc_type == CalcType::GPU) {
-        m_databases[0]->search(reference, results_smiles, results_ids,
+        m_databases[dbname]->search(reference, results_smiles, results_ids,
                 results_scores, return_count);
     } else {
-        m_databases[0]->search_cpu(reference, results_smiles, results_ids,
+        m_databases[dbname]->search_cpu(reference, results_smiles, results_ids,
                 results_scores, return_count);
     }
 
@@ -144,8 +147,11 @@ void GPUSimServer::similaritySearch(const Fingerprint& reference,
 void GPUSimServer::newConnection()
 {
     auto server = dynamic_cast<QLocalServer*>(sender());
-    qDebug() << server->serverName();
     QLocalSocket* clientConnection = server->nextPendingConnection();
+
+    // HACK:  For some reason QLocalSocket->serverName doesn't work in socket
+    clientConnection->setProperty("dbname", server->serverName());
+
     QObject::connect(clientConnection, &QLocalSocket::disconnected,
                      clientConnection, &QLocalSocket::deleteLater);
     QObject::connect(clientConnection, &QLocalSocket::readyRead, this,
@@ -155,6 +161,8 @@ void GPUSimServer::newConnection()
 void GPUSimServer::incomingSearchRequest()
 {
     auto clientConnection = static_cast<QLocalSocket*>(sender());
+    QString dbname = clientConnection->property("dbname").toString();
+    qDebug() << "Running against:  " << dbname;
 
     // Read incoming Fingerprint binary and put it in Fingerprint object
     QByteArray data = clientConnection->readAll();
@@ -173,12 +181,9 @@ void GPUSimServer::incomingSearchRequest()
     vector<char *> results_smiles, results_ids;
     vector<float> results_scores;
     
-    if(usingGPU()) {
-        similaritySearch(query, results_smiles, results_ids, results_scores, results_requested);
-    } else {
-        similaritySearch(query, results_smiles, results_ids, results_scores, results_requested,
-               CalcType::CPU);
-    }
+    similaritySearch(query, dbname, results_smiles, results_ids,
+            results_scores, results_requested,
+            usingGPU() ? CalcType::GPU : CalcType::CPU);
 
     // Create QByteArrays and QDataStreams to write to corresponding arrays
     QByteArray output_smiles, output_ids, output_scores;
@@ -203,9 +208,9 @@ void GPUSimServer::incomingSearchRequest()
 }
 
 
-Fingerprint GPUSimServer::getFingerprint(const int index)
+Fingerprint GPUSimServer::getFingerprint(const int index, const QString& dbname)
 {
-    return m_databases[0]->getFingerprint(index);
+    return m_databases[dbname]->getFingerprint(index);
 }
 
 } // end gpusim

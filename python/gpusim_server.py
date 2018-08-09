@@ -262,9 +262,11 @@ def main():
         handler = GPUSimHandler
     server = ThreadedHTTPServer((args.hostname, args.port), handler)
     print("Running HTTP server...")
-    server.serve_forever()
-    for proc in procs:
-        proc.kill()
+    try:
+        server.serve_forever()
+    finally:
+        for proc in procs:
+            proc.kill()
 
 
 if __name__ == '__main__':

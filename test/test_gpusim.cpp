@@ -35,19 +35,19 @@ BOOST_AUTO_TEST_CASE(CompareGPUtoCPU)
     GPUSimServer server(db_fnames);
     // Fetch a fingerprint to search against, this should always
     // guarantee a 100% match
-    const Fingerprint& fp = server.getFingerprint(std::rand() % 20);
+    const Fingerprint& fp = server.getFingerprint(std::rand() % 20, "small");
     const vector<int> return_counts = {10, 15};
 
     for(auto return_count : return_counts) {
         std::vector<char*> gpu_smiles;
         std::vector<char*> gpu_ids;
         std::vector<float> gpu_scores;
-        server.similaritySearch(fp, gpu_smiles, gpu_ids, gpu_scores, return_count, CalcType::GPU);
+        server.similaritySearch(fp, "small", gpu_smiles, gpu_ids, gpu_scores, return_count, CalcType::GPU);
 
         std::vector<char*> cpu_smiles;
         std::vector<char*> cpu_ids;
         std::vector<float> cpu_scores;
-        server.similaritySearch(fp, cpu_smiles, cpu_ids, cpu_scores, return_count, CalcType::CPU);
+        server.similaritySearch(fp, "small", cpu_smiles, cpu_ids, cpu_scores, return_count, CalcType::CPU);
 
         BOOST_CHECK_EQUAL(gpu_smiles.size(), return_count);
         for(unsigned int i=0; i<gpu_smiles.size(); i++) {
