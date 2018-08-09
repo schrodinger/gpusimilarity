@@ -54,7 +54,7 @@ if (DOXYGEN_FOUND) # make doc_doxygen
         VERBATIM)
 endif()
 
-add_library(gpusim gpusim.cpp fingerprintdb_cuda.cu)
+add_library(gpusim gpusim.cpp fingerprintdb_cuda.cu calculation_functors.cpp)
 target_include_directories(gpusim PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<INSTALL_INTERFACE:include>)

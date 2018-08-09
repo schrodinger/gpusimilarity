@@ -112,7 +112,7 @@ bool GPUSimServer::setupSocket(const QString& database_fname)
     }
 
     QLocalServer::connect(server, &QLocalServer::newConnection, this,
-                          &FastSimServer::newConnection);
+                          &GPUSimServer::newConnection);
 
     return true;
 }

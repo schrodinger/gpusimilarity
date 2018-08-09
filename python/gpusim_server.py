@@ -242,7 +242,7 @@ def main():
 
     procs = []
     # Start the GPU backend
-    cmdline = [FASTSIM_EXEC]
+    cmdline = [GPUSIM_EXEC]
     if args.cpu_only:
         cmdline.append('--cpu_only')
     cmdline += args.dbnames
