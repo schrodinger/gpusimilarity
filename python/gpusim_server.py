@@ -240,13 +240,12 @@ def main():
     # Try to connect to the GPU backend
     app = QtCore.QCoreApplication([])
 
-    procs = []
     # Start the GPU backend
     cmdline = [GPUSIM_EXEC]
     if args.cpu_only:
         cmdline.append('--cpu_only')
     cmdline += args.dbnames
-    procs.append(subprocess.Popen(cmdline))
+    backend_proc = subprocess.Popen(cmdline)
     for dbname in args.dbnames:
         dbname_noext = os.path.splitext(os.path.basename(dbname))[0]
         socket = QtNetwork.QLocalSocket(app)
@@ -265,8 +264,7 @@ def main():
     try:
         server.serve_forever()
     finally:
-        for proc in procs:
-            proc.kill()
+        backend_proc.kill()
 
 
 if __name__ == '__main__':
