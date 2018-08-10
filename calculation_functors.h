@@ -54,15 +54,15 @@ struct TanimotoFunctorCPU{
 class FoldFingerprintFunctorCPU{
     const int m_unfolded_fp_intsize;
     const int m_folded_fp_intsize;
-    int* m_unfolded;
+    const int* m_unfolded;
     int* m_folded;
 
 public:
     FoldFingerprintFunctorCPU(const int factor, const int fp_intsize,
-            int* unfolded, int* folded) :
+            const std::vector<int>& unfolded, std::vector<int>& folded) :
         m_unfolded_fp_intsize(fp_intsize),
-        m_folded_fp_intsize(fp_intsize/factor), m_unfolded(unfolded),
-        m_folded(folded)
+        m_folded_fp_intsize(fp_intsize/factor), m_unfolded(unfolded.data()),
+        m_folded(folded.data())
     {};
 
     void operator()(const int& fp_index) const;

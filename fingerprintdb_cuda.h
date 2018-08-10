@@ -27,12 +27,13 @@ class FingerprintDB
 
     /**
      * @brief
-     * Copy fingerprint memory up to the GPU, shrinking if necessary to fit inside
-     * memory_max amount of memory
+     * Copy fingerprint memory up to the GPU, folding to a smaller size
+     * if necessary
      *
-     * @param memory_max: Maximum amount of memory this DB can use
+     * @param fold_factor: Minimum factor to fold fingerprints by, might need
+     *                     fold by a bigger factor to get even folding
      */
-    void copyToGPU(size_t memory_max);
+    void copyToGPU(unsigned int fold_factor);
 
     // Total number of fingerprints in DB
     unsigned int count() const { return m_count; };
@@ -77,9 +78,11 @@ class FingerprintDB
     float tanimoto_similarity_cpu(const Fingerprint& fp1,
                                   const Fingerprint& fp2) const;
 
-    std::vector<int> m_data;
+    std::vector<int> fold_data(const std::vector<int>& unfolded) const;
+
+    std::vector<int> m_data, m_folded_data;
     FingerprintDBPriv* m_priv; // Used to conceal cuda types
-    int m_count, m_fp_intsize;
+    int m_count, m_fp_intsize, m_fold_factor;
     size_t m_data_size;
     std::vector<char*> m_smiles;
     std::vector<char*> m_ids;

@@ -21,7 +21,7 @@ void TanimotoFunctorCPU::operator()(const int& fp_index) const
 
 void FoldFingerprintFunctorCPU::operator()(const int& fp_index) const
 {
-    int* fp =  &(m_unfolded[fp_index * m_unfolded_fp_intsize]);
+    const int* fp =  &(m_unfolded[fp_index * m_unfolded_fp_intsize]);
     int* new_fp = &(m_folded[fp_index * m_folded_fp_intsize]);
     const int INT_SIZE = sizeof(int) * 8;
     const int original_size = INT_SIZE * m_unfolded_fp_intsize;

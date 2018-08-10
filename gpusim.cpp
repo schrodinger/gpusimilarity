@@ -18,6 +18,7 @@
 #include <QLocalSocket>
 #include <QSize>
 
+#include <math.h>
 #include <sys/time.h>
 
 #include "fingerprintdb_cuda.h"
@@ -56,9 +57,26 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames)
 
     // Now that we know how much total memory is required, divvy it up
     // and allow the fingerprint databases to copy up data
+    size_t total_db_memory = 0;
     for(auto db : m_databases) {
-        db->copyToGPU(get_available_gpu_memory());
+        total_db_memory += db->getFingerprintDataSize();
     }
+    unsigned int fold_factor = 1;
+    const auto gpu_memory = get_available_gpu_memory();
+    qDebug() << "Database:  " << total_db_memory/1024/1024 << "MB GPU Memory: "  <<
+        gpu_memory/1024/1024 << "MB";
+    if(total_db_memory > gpu_memory) 
+    {
+        fold_factor = ceilf(
+                (float)total_db_memory / (float)gpu_memory);
+        qDebug() << "Folding databases by " << fold_factor << " to fit in gpu memory";
+    }
+
+    qInfo() << "Putting graphics card data up.";
+    for(auto db : m_databases) {
+        db->copyToGPU(fold_factor);
+    }
+    qInfo() << "Finished putting graphics card data up.";
 
     qInfo() << "Ready for searches.";
 };

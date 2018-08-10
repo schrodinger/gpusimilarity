@@ -17,6 +17,8 @@
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 
+using std::cerr;
+using std::endl;
 using std::vector;
 using thrust::device_vector;
 
@@ -86,15 +88,18 @@ FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count, const char* data,
 }
 
 
-void FingerprintDB::copyToGPU(size_t memory_max)
+void FingerprintDB::copyToGPU(unsigned int fold_factor)
 {
-    std::cerr << m_data_size << "/" << memory_max << std::endl;
-    if(m_data_size > memory_max) 
-    {
-        std::cerr << "Shrinking db to fit in gpu memory" << std::endl;
-    } else {
-        std::cerr << "entire db fits in memory, not shrinking" << std::endl;
+    m_fold_factor = fold_factor;
+    while(m_fp_intsize % m_fold_factor != 0) {
+        m_fold_factor++;
+    }
+
+    if(fold_factor == 1) {
         m_priv->d_data = m_data;
+    } else {
+        m_folded_data = fold_data(m_data);
+        m_priv->d_data = m_folded_data;
     }
 }
 
@@ -125,19 +130,26 @@ void FingerprintDB::search (const Fingerprint& query,
     // Fill indices [0->N), which will be sorted along with scores at end
     thrust::sequence(d_results_indices.begin(), d_results_indices.end());
 
-    // Copy the query fingerprint up to the GPU
-    DFingerprint d_ref_fp = query;
+    DFingerprint d_ref_fp;
+    if(m_fold_factor == 1) {
+        // Copy the query fingerprint up to the GPU
+        d_ref_fp = query;
+    } else {
+        auto folded = fold_data(query);
+        d_ref_fp = folded;
+    }
 
+    int folded_fp_intsize = m_fp_intsize / m_fold_factor;
     // Use Tanimoto to score similarity of all compounds to query fingerprint
     thrust::transform(d_results_indices.begin(), d_results_indices.end(),
             d_results_scores.begin(),
-            TanimotoFunctor(d_ref_fp, m_fp_intsize, m_priv->d_data));
+            TanimotoFunctor(d_ref_fp, folded_fp_intsize, m_priv->d_data));
 
     // Sort scores & indices vectors descending on score
     thrust::sort_by_key(d_results_scores.begin(), d_results_scores.end(),
             d_results_indices.begin(), thrust::greater<float>());
     } catch(thrust::system_error e) {
-        std::cerr << "Error!  " << e.what() << std::endl;
+        cerr << "Error!  " << e.what() << endl;
     }
 
     // Push top return_count results to CPU results vectors to be returned
@@ -172,6 +184,8 @@ size_t get_available_gpu_memory()
 {
     size_t free=0, total=0;
     cudaMemGetInfo(&free, &total);
+    // Comment out below line to force-test folding:
+    // free = 100*1024*1024;
 
     return free;
 }

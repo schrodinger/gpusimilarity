@@ -1,3 +1,10 @@
+/* -------------------------------------------------------------------------
+ * Implements gpusim::FingerprintDB *NON*-CUDA functionality
+ * This is in its own file so that cuda and Qt don't have to intermix
+ *
+ * Copyright Schrodinger LLC, All Rights Reserved.
+ --------------------------------------------------------------------------- */
+
 #include "fingerprintdb_cuda.h"
 
 #include <QThreadPool>
@@ -15,11 +22,9 @@ void FingerprintDB::search_cpu (const Fingerprint& query,
 {
     const int total = count();
     vector<int> indices(total);
-    vector<float> scores(total);
+    std::iota(indices.begin(), indices.end(), 0);
 
-    for(int i=0; i<total; i++) {
-        indices[i] = i;
-    }
+    vector<float> scores(total);
 
     // Scoring parallelizes well, but bottleneck is now sorting
     QtConcurrent::blockingMap(indices,
@@ -33,6 +38,21 @@ void FingerprintDB::search_cpu (const Fingerprint& query,
         results_ids.push_back(m_ids[indices[i]]);
         results_scores.push_back(scores[i]);
     }
+}
+
+
+std::vector<int> FingerprintDB::fold_data(const std::vector<int>& unfolded) const
+{
+    vector<int> folded(unfolded.size() / m_fold_factor);
+    std::fill(folded.begin(), folded.end(), 0);
+
+    vector<int> indices(unfolded.size() / m_fp_intsize);
+    std::iota(indices.begin(), indices.end(), 0);
+
+    QtConcurrent::blockingMap(indices,
+            FoldFingerprintFunctorCPU(m_fold_factor, m_fp_intsize, unfolded,
+                folded));
+    return folded;
 }
 
 
