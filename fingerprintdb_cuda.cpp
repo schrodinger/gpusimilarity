@@ -33,7 +33,7 @@ void FingerprintDB::search_cpu (const Fingerprint& query,
     top_results_bubble_sort(indices, scores, return_count);
 
     // Push top return_count results to CPU results vectors to be returned
-    for(unsigned int i=total-1;i>=total-return_count;i--) {
+    for(unsigned int i=0;i<return_count;i++) {
         results_smiles.push_back(m_smiles[indices[i]]);
         results_ids.push_back(m_ids[indices[i]]);
         results_scores.push_back(scores[i]);
@@ -83,9 +83,9 @@ void top_results_bubble_sort(vector<int>& indices, vector<float>& scores,
 {
     const int count = indices.size();
     for(int i=0; i<number_required; i++) {
-        for(int j=0; j<(count-i-1); j++) {
-            if(scores[j] > scores[j+1]) {
-                swap(indices, scores, j, j+1);
+        for(int j=(count-1); j>i; j--) {
+            if(scores[j] > scores[j-1]) {
+                swap(indices, scores, j, j-1);
             }
         }
     }

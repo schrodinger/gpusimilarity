@@ -68,11 +68,11 @@ BOOST_AUTO_TEST_CASE(CPUSort)
     top_results_bubble_sort(indices, scores, 3);
 
     // Verify that this pushed the top 3 values to the far right of arrays
-    BOOST_CHECK_EQUAL(indices[5], 5);
-    BOOST_CHECK_EQUAL(scores[5], 7);
+    BOOST_CHECK_EQUAL(indices[0], 5);
+    BOOST_CHECK_EQUAL(scores[0], 7);
 
-    BOOST_CHECK_EQUAL(indices[3], 1);
-    BOOST_CHECK_EQUAL(scores[3], 3);
+    BOOST_CHECK_EQUAL(indices[2], 1);
+    BOOST_CHECK_EQUAL(scores[2], 3);
 
 }
 

@@ -152,13 +152,33 @@ void FingerprintDB::search (const Fingerprint& query,
         cerr << "Error!  " << e.what() << endl;
     }
 
-    // Push top return_count results to CPU results vectors to be returned
-    for(unsigned int i=0;i<return_count;i++) {
-        results_smiles.push_back(m_smiles[d_results_indices[i]]);
-        results_ids.push_back(m_ids[d_results_indices[i]]);
+    if(m_fold_factor == 1) { // If we don't fold, we can take exact GPU results
+        // Push top return_count results to CPU results vectors to be returned
+        for(unsigned int i=0;i<return_count*m_fold_factor;i++) {
+            results_smiles.push_back(m_smiles[d_results_indices[i]]);
+            results_ids.push_back(m_ids[d_results_indices[i]]);
+        }
+        results_scores.assign(d_results_scores.begin(),
+                d_results_scores.begin()+return_count*m_fold_factor);
+    } else { // If we folded, we need to recalculate scores with full fingerprints
+        vector<int> indices(return_count*m_fold_factor);
+        results_scores.resize(return_count*m_fold_factor);
+        for(unsigned int i=0;i<return_count*m_fold_factor;i++) {
+            indices[i] = d_results_indices[i];
+            results_scores[i] = tanimoto_similarity_cpu(query,
+                    getFingerprint(indices[i]));
+            cerr << results_scores[i] << " vs " << d_results_scores[i] << endl;
+        }
+        top_results_bubble_sort(indices, results_scores, return_count);
+
+        results_scores.resize(return_count);
+        for(unsigned int i=0;i<return_count;i++) {
+            results_ids.push_back(m_ids[indices[i]]);
+            results_smiles.push_back(m_smiles[indices[i]]);
+        }
     }
-    results_scores.assign(d_results_scores.begin(),
-            d_results_scores.begin()+return_count);
+
+
 
 }
 
