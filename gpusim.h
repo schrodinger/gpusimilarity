@@ -24,8 +24,9 @@ class GPUSimServer : public QObject
      * Start a GPUSimServer running on a local socket to communicate with
      * clients.  The server will contain the data in the provided .fsim file.
      * @param database_fname: .fsim file storing relevant data in binary format
+     * @param gpu_bitcount: If 0, then auto-calculate optimal value
      */
-    GPUSimServer(const QStringList& database_fnames);
+    GPUSimServer(const QStringList& database_fnames, int gpu_bitcount=0);
 
     /**
      * @brief
