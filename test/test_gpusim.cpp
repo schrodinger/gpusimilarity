@@ -37,25 +37,75 @@ BOOST_AUTO_TEST_CASE(CompareGPUtoCPU)
     // guarantee a 100% match
     const Fingerprint& fp = server.getFingerprint(std::rand() % 20, "small");
     const vector<int> return_counts = {10, 15};
+    const float similarity_cutoff = 0;
 
     for(auto return_count : return_counts) {
         std::vector<char*> gpu_smiles;
         std::vector<char*> gpu_ids;
         std::vector<float> gpu_scores;
-        server.similaritySearch(fp, "small", gpu_smiles, gpu_ids, gpu_scores, return_count, CalcType::GPU);
+        server.similaritySearch(fp, "small", gpu_smiles, gpu_ids, gpu_scores,
+                return_count, similarity_cutoff, CalcType::GPU);
 
         std::vector<char*> cpu_smiles;
         std::vector<char*> cpu_ids;
         std::vector<float> cpu_scores;
-        server.similaritySearch(fp, "small", cpu_smiles, cpu_ids, cpu_scores, return_count, CalcType::CPU);
+        server.similaritySearch(fp, "small", cpu_smiles, cpu_ids, cpu_scores,
+                return_count, similarity_cutoff, CalcType::CPU);
 
         BOOST_CHECK_EQUAL(gpu_smiles.size(), return_count);
         for(unsigned int i=0; i<gpu_smiles.size(); i++) {
             BOOST_CHECK_EQUAL(gpu_smiles[i], cpu_smiles[i]);
         }
     }
+}
+
+
+BOOST_AUTO_TEST_CASE(TestSearchAll)
+{
+    QStringList db_fnames;
+    db_fnames << "small.fsim";
+    db_fnames << "small_copy.fsim";
+    GPUSimServer server(db_fnames);
+    // Fetch a fingerprint to search against, this should always
+    // guarantee a 100% match
+    const Fingerprint& fp = server.getFingerprint(std::rand() % 20, "small");
+    int return_count = 10;
+    const float similarity_cutoff = 0;
+
+    std::vector<char*> smiles;
+    std::vector<char*> ids;
+    std::vector<float> scores;
+    server.searchAll(fp, return_count, similarity_cutoff, smiles, ids, scores);
+
+    BOOST_CHECK_EQUAL(smiles.size(), return_count);
+    // Two copies of the database should always have duplicate top 2 results
+    BOOST_CHECK_EQUAL(smiles[0], smiles[1]);
+}
+
+
+BOOST_AUTO_TEST_CASE(TestSimilarityCutoff)
+{
+    QStringList db_fnames;
+    db_fnames << "small.fsim";
+    GPUSimServer server(db_fnames);
+    const Fingerprint& fp = server.getFingerprint(0, "small");
+    int return_count = 10;
+    const vector<float> similarity_cutoffs = {0, 0.1, 0.3, 0.4};
+    // Results returned for each cutoff range
+    const vector<int> result_counts = {10, 10, 3, 1};
+
+    for(unsigned int i=0; i<similarity_cutoffs.size(); i++) {
+        std::vector<char*> smiles;
+        std::vector<char*> ids;
+        std::vector<float> scores;
+        server.similaritySearch(fp, "small", smiles, ids, scores, return_count,
+                similarity_cutoffs[i], CalcType::GPU);
+
+        BOOST_CHECK_EQUAL(smiles.size(), result_counts[i]);
+    }
 
 }
+
 
 /* 
  * This tests our custom sort function, modified bubble sort to get

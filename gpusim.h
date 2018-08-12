@@ -16,6 +16,7 @@ namespace gpusim
 class FingerprintDB;
 enum class CalcType {GPU, CPU};
 
+
 class GPUSimServer : public QObject
 {
   public:
@@ -30,7 +31,7 @@ class GPUSimServer : public QObject
 
     /**
      * @brief
-     * Finds the <return_count> most similar compounds stored in the database
+     * Finds the most similar compounds stored in the database
      * to the reference fingerprint provided
      *
      * @param query: Fingerprint to find closest matches to
@@ -38,6 +39,9 @@ class GPUSimServer : public QObject
      * @param results_smiles: Vector to store smiles of results
      * @param results_ids: Vector to store IDs of results
      * @param results_scores: Vector to store scores of results
+     * @param return_count: Maximum number of results to return
+     * @param similarity_cutoff: Minimum similarity score to return molecules for
+     * @param calc_type: Whether to search on CPU or GPU
      */
     void similaritySearch(const Fingerprint& reference,
                           const QString& dbname,
@@ -45,7 +49,12 @@ class GPUSimServer : public QObject
                           std::vector<char*>& results_ids,
                           std::vector<float>& results_scores,
                           unsigned int return_count,
+                          float similarity_cutoff,
                           CalcType calc_type=CalcType::GPU);
+
+    void searchAll(const Fingerprint& reference, int results_requested,
+            float similarity_cutoff, std::vector<char *>&  results_smiles,
+            std::vector<char *>& results_ids, std::vector<float>& results_scores);
 
     /**
      * @brief

@@ -55,17 +55,21 @@ class FingerprintDB
      * @param results_smiles: Vector to store smiles of results
      * @param results_ids: Vector to store IDs of results
      * @param results_scores: Vector to store scores of results
+     * @param return_count: Maximum number of results to return
+     * @param similarity_cutoff: Minimum similarity score to return
      */
     void search(const Fingerprint& query, std::vector<char*>& results_smiles,
                 std::vector<char*>& results_ids,
                 std::vector<float>& results_scores,
-                unsigned int return_count) const;
+                unsigned int return_count,
+                float similarity_cutoff) const;
 
-    void search_cpu (const Fingerprint& query,
+    void search_cpu(const Fingerprint& query,
             std::vector<char*>& results_smiles,
             std::vector<char*>& results_ids,
             std::vector<float>& results_scores,
-            unsigned int return_count) const;
+            unsigned int return_count,
+            float similarity_cutoff) const;
 
 
     char* getSmiles(int index) const { return m_smiles[index]; }
