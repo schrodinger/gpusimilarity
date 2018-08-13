@@ -15,16 +15,15 @@ int main(int argc, char* argv[])
     int gpu_bitcount = 0;
 
     int first_file_idx = 1;
-    while(args[first_file_idx].startsWith("--")) first_file_idx++;
-
-    if(args.contains("--cpu_only")) {
-        use_gpu = false;
-    }
     for(int i=1; i<args.count(); i++) {
+        if(args[i] == "--cpu_only") {
+            use_gpu = false;
+            first_file_idx = i+1;
+        }
         if(args[i] == "--gpu_bitcount") {
             first_file_idx = i+2;
             bool ok = false;
-            gpu_bitcount = args[i+1].toInt(&ok, 10);
+            gpu_bitcount = args[++i].toInt(&ok, 10);
             if(ok == false) {
                 std::cout << "--gpu_bitcount given without "
                     "valid argument following" << std::endl;
