@@ -18,6 +18,8 @@
 #include <QLocalSocket>
 #include <QSize>
 
+#include <algorithm>
+#include <exception>
 #include <math.h>
 #include <sys/time.h>
 
@@ -31,7 +33,7 @@ using gpusim::Fingerprint;
 
 namespace gpusim
 {
-GPUSimServer::GPUSimServer(const QStringList& database_fnames)
+GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
 {
     for(auto database_fname : database_fnames) {
         // Read from .fsim file into byte arrays
@@ -58,8 +60,11 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames)
     // Now that we know how much total memory is required, divvy it up
     // and allow the fingerprint databases to copy up data
     size_t total_db_memory = 0;
+    int max_fp_bitcount = 0;
     for(auto db : m_databases) {
         total_db_memory += db->getFingerprintDataSize();
+        max_fp_bitcount = std::max(max_fp_bitcount,
+                db->getFingerprintBitcount());
     }
     unsigned int fold_factor = 1;
     const auto gpu_memory = get_available_gpu_memory();
@@ -70,6 +75,14 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames)
         fold_factor = ceilf(
                 (float)total_db_memory / (float)gpu_memory);
         qDebug() << "Folding databases by " << fold_factor << " to fit in gpu memory";
+    }
+
+    if(gpu_bitcount > 0) {
+        int arg_fold_factor = max_fp_bitcount / gpu_bitcount;
+        if (arg_fold_factor < fold_factor) {
+            throw std::invalid_argument("GPU bitset not sufficiently small to fit on GPU");
+        } 
+        fold_factor = arg_fold_factor;
     }
 
     qInfo() << "Putting graphics card data up.";

@@ -72,6 +72,7 @@ class FingerprintDB
     char* getID(int index) const { return m_ids[index]; }
 
     size_t getFingerprintDataSize() const { return m_data_size; };
+    int getFingerprintBitcount() const { return m_fp_intsize * sizeof(int) * 8; }
 
   protected:
     // INTERNAL:  A CPU implementation of tanimoto similarity for validation

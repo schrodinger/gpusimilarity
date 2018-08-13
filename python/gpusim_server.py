@@ -229,6 +229,8 @@ def parse_args():
                         help="Start HTTP server for debugging, not secure enough for production machine") #noqa
     parser.add_argument('--cpu_only', action='store_true',
                         help="Search the database on the CPU, not the GPU (slow)") #noqa
+    parser.add_argument('--gpu_bitcount', default='0',
+                        help="Provide the maximum bitcount for fingerprints on GPU") #noqa
     return parser.parse_args()
 
 
@@ -244,6 +246,7 @@ def main():
     cmdline = [GPUSIM_EXEC]
     if args.cpu_only:
         cmdline.append('--cpu_only')
+    cmdline += ['--gpu_bitcount', args.gpu_bitcount]
     cmdline += args.dbnames
     backend_proc = subprocess.Popen(cmdline)
     for dbname in args.dbnames:
