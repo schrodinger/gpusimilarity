@@ -58,7 +58,7 @@ struct TanimotoFunctor {
             common += __popc(fp1 & fp2);
         }
         float score = (float)common / (float)(total-common);
-        return score > m_similarity_cutoff ? score : 0;
+        return score >= m_similarity_cutoff ? score : 0;
     };
 };
 
@@ -201,6 +201,11 @@ void FingerprintDB::search(const Fingerprint& query,
         return_count = std::min((size_t)return_count, indices.size());
         results_scores.resize(return_count);
         for(unsigned int i=0;i<return_count;i++) {
+            // Check whether the re-scored similarity is too low
+            if(results_scores[i] < similarity_cutoff) {
+                results_scores.resize(i);
+                break;
+            }
             results_ids.push_back(m_ids[indices[i]]);
             results_smiles.push_back(m_smiles[indices[i]]);
         }
