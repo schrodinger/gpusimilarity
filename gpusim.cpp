@@ -63,16 +63,25 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
     // Now that we know how much total memory is required, divvy it up
     // and allow the fingerprint databases to copy up data
     size_t total_db_memory = 0;
+    unsigned int max_compounds_in_db = 0;
     int max_fp_bitcount = 0;
     for(auto db : m_databases) {
         total_db_memory += db->getFingerprintDataSize();
+        max_compounds_in_db = std::max(max_compounds_in_db, db->count());
         max_fp_bitcount = std::max(max_fp_bitcount,
                 db->getFingerprintBitcount());
     }
+
+
     unsigned int fold_factor = 1;
-    const auto gpu_memory = get_available_gpu_memory();
+    auto gpu_memory = get_available_gpu_memory();
+
+    // Reserve space for the indices vector during search
+    gpu_memory -= sizeof(int) * max_compounds_in_db;
+
     qDebug() << "Database:  " << total_db_memory/1024/1024 << "MB GPU Memory: "  <<
         gpu_memory/1024/1024 << "MB";
+
     if(total_db_memory > gpu_memory) 
     {
         fold_factor = ceilf(
