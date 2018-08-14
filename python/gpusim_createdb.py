@@ -13,7 +13,8 @@ import gpusim_utils
 
 def parse_args():
     import argparse
-    parser = argparse.ArgumentParser(description='A toy!')
+    parser = argparse.ArgumentParser(description='Create a GPUSimilarity '
+                                     'Binary FingerprintDB')
     parser.add_argument('inputfile')
     parser.add_argument('outputfile')
     parser.add_argument('--trustSmiles', action='store_true', default=False)
