@@ -76,7 +76,7 @@ FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count, const char* data,
             std::vector<char*>& ids_vector)
 {
 
-    m_priv = new FingerprintDBPriv();
+    m_priv = std::make_shared<FingerprintDBPriv>();
     m_fp_intsize = fp_bitcount / (sizeof(int)*8);  //ASSUMES INT-DIVISIBLE SIZE
     m_count = fp_count;
 
@@ -99,7 +99,7 @@ void FingerprintDB::copyToGPU(unsigned int fold_factor)
         m_fold_factor++;
     }
 
-    if(fold_factor == 1) {
+    if(m_fold_factor == 1) {
         m_priv->d_data = m_data;
     } else {
         m_folded_data = fold_data(m_data);
@@ -130,7 +130,7 @@ void FingerprintDB::search(const Fingerprint& query,
 {
     device_vector<int> d_results_indices(count());
     device_vector<float> d_results_scores(count());
-    vector<int> indices(return_count*m_fold_factor);
+    vector<int> indices;
     int results_to_consider = 0;
 
     try

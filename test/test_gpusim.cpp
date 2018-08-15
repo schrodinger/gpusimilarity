@@ -15,6 +15,7 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include "calculation_functors.h"
 #include "gpusim.h"
 #include "fingerprintdb_cuda.h"
 
@@ -128,18 +129,20 @@ BOOST_AUTO_TEST_CASE(CPUSort)
 
 BOOST_AUTO_TEST_CASE(FoldFingerprint)
 {
-    /*
     int factor = 2;
     vector<int> fp = {32, 24, 11, 7};
     vector<int> ref_answer = {43, 31};
-    vector<int> answer = fold_fingerprint(fp, factor);
+    vector<int> answer(fp.size() / factor);
+    gpusim::FoldFingerprintFunctorCPU(factor, fp.size(), fp, answer)(0);
+
     for(int i=0; i<ref_answer.size(); i++){
     	BOOST_CHECK_EQUAL(answer[i], ref_answer[i]);
     }
 
     factor = 4;
-    answer = fold_fingerprint(fp, factor);
+    answer.resize(1);
+    answer[0] = 0;
+    gpusim::FoldFingerprintFunctorCPU(factor, fp.size(), fp, answer)(0);
     BOOST_CHECK_EQUAL(answer.size(), 1);
     BOOST_CHECK_EQUAL(answer[0], 63);
-    */
 }

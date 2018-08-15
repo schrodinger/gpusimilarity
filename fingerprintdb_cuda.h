@@ -7,6 +7,7 @@
 #ifndef FINGERPRINTDB_CUDA
 #define FINGERPRINTDB_CUDA
 
+#include <memory>
 #include <vector>
 #include <utility>
 #include "types.h"
@@ -86,7 +87,7 @@ class FingerprintDB
     std::vector<int> fold_data(const std::vector<int>& unfolded) const;
 
     std::vector<int> m_data, m_folded_data;
-    FingerprintDBPriv* m_priv; // Used to conceal cuda types
+    std::shared_ptr<FingerprintDBPriv> m_priv; // Used to conceal cuda types
     int m_count, m_fp_intsize, m_fold_factor;
     size_t m_data_size;
     std::vector<char*> m_smiles;

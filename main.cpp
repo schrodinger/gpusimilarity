@@ -35,10 +35,10 @@ int main(int argc, char* argv[])
     bool file_exists = QFileInfo(args[first_file_idx]).exists();
     if(!file_exists) {
         std::cout << "File: \"" << qPrintable(args[first_file_idx]) << "\" not found." << std::endl;
+        return 1;
     }
 
-    if(args.contains("--help") || args.contains("-h") ||
-            !file_exists) {
+    if(args.contains("--help") || args.contains("-h")) {
         std::cout << "Arg parsing is only done in a reasonable way in"
             " the python gpusim_server.py.  Handling here is very error prone"
             " and not intended for direct use." << std::endl;
