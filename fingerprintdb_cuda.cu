@@ -72,7 +72,7 @@ FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count, const char* data,
             std::vector<char*>& ids_vector)
 {
 
-    m_priv = new FingerprintDBPriv();
+    m_priv = std::make_shared<FingerprintDBPriv>();
     m_fp_intsize = fp_bitcount / (sizeof(int)*8);  //ASSUMES INT-DIVISIBLE SIZE
     m_count = fp_count;
 
@@ -95,7 +95,7 @@ void FingerprintDB::copyToGPU(unsigned int fold_factor)
         m_fold_factor++;
     }
 
-    if(fold_factor == 1) {
+    if(m_fold_factor == 1) {
         m_priv->d_data = m_data;
     } else {
         m_folded_data = fold_data(m_data);
@@ -124,6 +124,7 @@ void FingerprintDB::search (const Fingerprint& query,
 {
     device_vector<int> d_results_indices(count());
     device_vector<float> d_results_scores(count());
+    return_count = min(return_count, count()); // Prevent buffer overflow
 
     try
     {
@@ -154,16 +155,18 @@ void FingerprintDB::search (const Fingerprint& query,
 
     if(m_fold_factor == 1) { // If we don't fold, we can take exact GPU results
         // Push top return_count results to CPU results vectors to be returned
-        for(unsigned int i=0;i<return_count*m_fold_factor;i++) {
+        for(unsigned int i=0;i<return_count;i++) {
             results_smiles.push_back(m_smiles[d_results_indices[i]]);
             results_ids.push_back(m_ids[d_results_indices[i]]);
         }
         results_scores.assign(d_results_scores.begin(),
-                d_results_scores.begin()+return_count*m_fold_factor);
+                d_results_scores.begin()+return_count);
     } else { // If we folded, we need to recalculate scores with full fingerprints
-        vector<int> indices(return_count*m_fold_factor);
-        results_scores.resize(return_count*m_fold_factor);
-        for(unsigned int i=0;i<return_count*m_fold_factor;i++) {
+        int max_consider = std::min(return_count*m_fold_factor,
+                (unsigned int)d_results_indices.size());
+        vector<int> indices(max_consider);
+        results_scores.resize(max_consider);
+        for(unsigned int i=0; i<max_consider; i++) {
             indices[i] = d_results_indices[i];
             results_scores[i] = tanimoto_similarity_cpu(query,
                     getFingerprint(indices[i]));

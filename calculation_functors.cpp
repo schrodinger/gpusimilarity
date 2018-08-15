@@ -35,7 +35,7 @@ void FoldFingerprintFunctorCPU::operator()(const int& fp_index) const
 
         int new_pos = pos % new_size;
         int new_int_offset = new_pos / INT_SIZE;
-        int new_inner_pos = new_pos % INT_SIZE;
+        const int new_inner_pos = inner_pos; // Always the same
         new_fp[new_int_offset] |= (1 << new_inner_pos) * bit_on;
     }
 
