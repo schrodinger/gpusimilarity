@@ -1,6 +1,9 @@
 """
 gpusim_mergedb.py
 Use this to merge fsim files into one, allowing for highly parallel creation
+
+Example command:
+python3 gpusmi_mergedb.py in1.fsim in2.fsim in3.fsim -o out.fsim
 """
 
 from PyQt5 import QtCore
