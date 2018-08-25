@@ -14,6 +14,7 @@ def main():
 
     while smiles and smiles.lower() not in ('quit', 'exit'):
         return_count = 20
+        similarity_cutoff = 0
 
         fp_binary = smiles_to_fingerprint_bin(smiles)
         fp_qba = QtCore.QByteArray(fp_binary)
@@ -22,6 +23,7 @@ def main():
         output_qds = QtCore.QDataStream(output_qba, QtCore.QIODevice.WriteOnly)
 
         output_qds.writeInt(return_count)
+        output_qds.writeFloat(similarity_cutoff)
         output_qds << fp_qba
 
         socket.write(output_qba)

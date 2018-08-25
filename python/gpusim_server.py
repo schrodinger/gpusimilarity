@@ -46,9 +46,11 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                      'CONTENT_TYPE': self.headers['Content-Type'],
                      })
 
-        return form["smiles"].value.strip(), int(form["return_count"].value)
+        return (form["smiles"].value.strip(), int(form["return_count"].value),
+                float(form["similarity_cutoff"].value))
 
-    def get_data(self, socket_name, src_smiles, return_count):
+    def get_data(self, socket_name, src_smiles, return_count,
+                 similarity_cutoff):
         fp_binary = gpusim_utils.smiles_to_fingerprint_bin(src_smiles)
         fp_qba = QtCore.QByteArray(fp_binary)
 
@@ -56,6 +58,7 @@ class GPUSimHandler(BaseHTTPRequestHandler):
         output_qds = QtCore.QDataStream(output_qba, QtCore.QIODevice.WriteOnly)
 
         output_qds.writeInt(return_count)
+        output_qds.writeFloat(similarity_cutoff)
         output_qds << fp_qba
 
         socket = sockets[socket_name]
@@ -70,29 +73,15 @@ class GPUSimHandler(BaseHTTPRequestHandler):
         self.send_error(404, 'Server unavailable.')
 
     def get_data_from_dbname(self, dbname):
-        dbnames = [dbname]
-        if dbname == 'all':
-            dbnames = sockets.keys()
-        elif dbname not in sockets:
+        if dbname not in sockets:
             self.send_error(404, f'DB {dbname} not found in options: {sockets.keys()}') #noqa
             raise ValueError('DB not found')
         allsmiles, allids, allscores = [], [], []
-        src_smiles, return_count = self.get_posted_data()
-        for dbname in dbnames:
-            output_qba = self.get_data(dbname, src_smiles, return_count)
-            return_count, smiles, ids, scores = self.deserialize_results(output_qba)
-            allsmiles += smiles
-            allids += ids
-            allscores += scores
+        src_smiles, return_count, similarity_cutoff = self.get_posted_data()
+        output_qba = self.get_data(dbname, src_smiles, return_count,
+                                    similarity_cutoff)
+        return_count, smiles, ids, scores = self.deserialize_results(output_qba)
 
-        combined_sorted = sorted(zip(allscores, allids, allsmiles),
-                                 reverse=True)
-        smiles, ids, scores = [], [], []
-        for i in range(return_count):
-            score, cid, smi = combined_sorted[i]
-            smiles.append(smi)
-            ids.append(cid)
-            scores.append(score)
         return smiles, ids, scores, src_smiles
 
     def do_POST(self):
@@ -229,7 +218,20 @@ def parse_args():
                         help="Start HTTP server for debugging, not secure enough for production machine") #noqa
     parser.add_argument('--cpu_only', action='store_true',
                         help="Search the database on the CPU, not the GPU (slow)") #noqa
+    parser.add_argument('--gpu_bitcount', default='0',
+                        help="Provide the maximum bitcount for fingerprints on GPU") #noqa
     return parser.parse_args()
+
+
+def setup_socket(app, dbname_noext):
+    global sockets
+
+    socket = QtNetwork.QLocalSocket(app)
+    while not socket.isValid():
+        socket_name = dbname_noext
+        socket.connectToServer(socket_name)
+        time.sleep(0.3)
+        sockets[dbname_noext] = socket
 
 
 def main():
@@ -240,20 +242,17 @@ def main():
     # Try to connect to the GPU backend
     app = QtCore.QCoreApplication([])
 
-    procs = []
+    # Start the GPU backend
+    cmdline = [GPUSIM_EXEC]
+    if args.cpu_only:
+        cmdline.append('--cpu_only')
+    cmdline += ['--gpu_bitcount', args.gpu_bitcount]
+    cmdline += args.dbnames
+    backend_proc = subprocess.Popen(cmdline)
     for dbname in args.dbnames:
-        # Start the GPU backend
-        cmdline = [GPUSIM_EXEC, dbname]
-        if args.cpu_only:
-            cmdline.append('--cpu_only')
-        procs.append(subprocess.Popen(cmdline))
-        socket = QtNetwork.QLocalSocket(app)
         dbname_noext = os.path.splitext(os.path.basename(dbname))[0]
-        sockets[dbname_noext] = socket
-        while not socket.isValid():
-            socket_name = os.path.splitext(os.path.basename(dbname))[0]
-            socket.connectToServer(socket_name)
-            time.sleep(0.3)
+        setup_socket(app, dbname_noext)
+    setup_socket(app, "all")
 
     if args.http_interface:
         handler = GPUSimHTTPHandler
@@ -261,9 +260,10 @@ def main():
         handler = GPUSimHandler
     server = ThreadedHTTPServer((args.hostname, args.port), handler)
     print("Running HTTP server...")
-    server.serve_forever()
-    for proc in procs:
-        proc.kill()
+    try:
+        server.serve_forever()
+    finally:
+        backend_proc.kill()
 
 
 if __name__ == '__main__':
