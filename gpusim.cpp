@@ -26,6 +26,7 @@
 #include "fingerprintdb_cuda.h"
 #include "local_qinfo.h"
 
+using std::pair;
 using std::shared_ptr;
 using std::vector;
 using gpusim::FingerprintDB;
@@ -56,20 +57,31 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
         qDebug() << "Setting up DB:  " << socket_name;
         m_databases[socket_name] = fps;
     }
+    if (!setupSocket("all"))
+        return;
 
     // Now that we know how much total memory is required, divvy it up
     // and allow the fingerprint databases to copy up data
     size_t total_db_memory = 0;
+    unsigned int max_compounds_in_db = 0;
     int max_fp_bitcount = 0;
     for(auto db : m_databases) {
         total_db_memory += db->getFingerprintDataSize();
+        max_compounds_in_db = std::max(max_compounds_in_db, db->count());
         max_fp_bitcount = std::max(max_fp_bitcount,
                 db->getFingerprintBitcount());
     }
+
+
     unsigned int fold_factor = 1;
-    const auto gpu_memory = get_available_gpu_memory();
+    auto gpu_memory = get_available_gpu_memory();
+
+    // Reserve space for the indices vector during search
+    gpu_memory -= sizeof(int) * max_compounds_in_db;
+
     qDebug() << "Database:  " << total_db_memory/1024/1024 << "MB GPU Memory: "  <<
         gpu_memory/1024/1024 << "MB";
+
     if(total_db_memory > gpu_memory) 
     {
         fold_factor = ceilf(
@@ -152,17 +164,19 @@ bool GPUSimServer::setupSocket(const QString& socket_name)
 void GPUSimServer::similaritySearch(const Fingerprint& reference,
         const QString& dbname,
         vector<char*>& results_smiles, vector<char*>& results_ids,
-        vector<float>& results_scores, unsigned int return_count, CalcType calc_type)
+        vector<float>& results_scores, unsigned int return_count,
+        float similarity_cutoff, CalcType calc_type)
 {
     struct timeval tval_before, tval_after, tval_result;
     gettimeofday(&tval_before, nullptr);
+    qDebug() << "Similarity Cutoff!" << similarity_cutoff;
 
     if(calc_type == CalcType::GPU) {
         m_databases[dbname]->search(reference, results_smiles, results_ids,
-                results_scores, return_count);
+                results_scores, return_count, similarity_cutoff);
     } else {
         m_databases[dbname]->search_cpu(reference, results_smiles, results_ids,
-                results_scores, return_count);
+                results_scores, return_count, similarity_cutoff);
     }
 
     gettimeofday(&tval_after, nullptr);
@@ -188,6 +202,39 @@ void GPUSimServer::newConnection()
                      &GPUSimServer::incomingSearchRequest);
 }
 
+void GPUSimServer::searchAll(const Fingerprint& query, int results_requested,
+        float similarity_cutoff, vector<char *>&  results_smiles,
+        vector<char *>& results_ids, vector<float>& results_scores)
+{
+    typedef pair<char*, char*> ResultData;
+    typedef pair<float, ResultData > SortableResult;
+
+    vector<SortableResult> sortable_results;
+    for(auto local_dbname : m_databases.keys()) {
+        vector<char *> l_results_smiles, l_results_ids;
+        vector<float> l_results_scores;
+        similaritySearch(query, local_dbname, l_results_smiles, l_results_ids,
+                l_results_scores, results_requested, similarity_cutoff,
+                usingGPU() ? CalcType::GPU : CalcType::CPU);
+        for(int i=0; i<l_results_smiles.size(); i++) {
+            sortable_results.push_back(SortableResult(l_results_scores[i], 
+                        ResultData(l_results_smiles[i], l_results_ids[i])));
+        }
+    }
+    std::sort(sortable_results.begin(), sortable_results.end());
+    std::reverse(sortable_results.begin(), sortable_results.end());
+
+    for(auto result : sortable_results) {
+        results_scores.push_back(result.first);
+        results_smiles.push_back(result.second.first);
+        results_ids.push_back(result.second.second);
+    }
+    int result_size = std::min(results_requested, (int)results_scores.size());
+    results_scores.resize(result_size);
+    results_smiles.resize(result_size);
+    results_ids.resize(result_size);
+}
+
 void GPUSimServer::incomingSearchRequest()
 {
     auto clientConnection = static_cast<QLocalSocket*>(sender());
@@ -198,6 +245,8 @@ void GPUSimServer::incomingSearchRequest()
     QDataStream qds(&data, QIODevice::ReadOnly);
     int results_requested;
     qds >> results_requested;
+    float similarity_cutoff;
+    qds >> similarity_cutoff;
     QByteArray fp_data;
     qds >> fp_data;
     const int* raw_fp_data = reinterpret_cast<const int*>(fp_data.constData());
@@ -210,16 +259,21 @@ void GPUSimServer::incomingSearchRequest()
     vector<char *> results_smiles, results_ids;
     vector<float> results_scores;
     
-    similaritySearch(query, dbname, results_smiles, results_ids,
-            results_scores, results_requested,
-            usingGPU() ? CalcType::GPU : CalcType::CPU);
+    if(dbname == "all") {
+        searchAll(query, results_requested, similarity_cutoff, results_smiles,
+                results_ids, results_scores);
+    } else {
+        similaritySearch(query, dbname, results_smiles, results_ids,
+                results_scores, results_requested, similarity_cutoff,
+                usingGPU() ? CalcType::GPU : CalcType::CPU);
+    }
 
     // Create QByteArrays and QDataStreams to write to corresponding arrays
     QByteArray output_smiles, output_ids, output_scores;
     QDataStream smiles_stream(&output_smiles, QIODevice::WriteOnly);
     QDataStream ids_stream(&output_ids, QIODevice::WriteOnly);
     QDataStream scores_stream(&output_scores, QIODevice::WriteOnly);
-    for (int i = 0; i < results_requested; i++) {
+    for (int i = 0; i < results_smiles.size(); i++) {
         smiles_stream << results_smiles[i];
         ids_stream << results_ids[i];
         scores_stream << results_scores[i];
@@ -228,7 +282,7 @@ void GPUSimServer::incomingSearchRequest()
     // Transmit binary data to client and flush the buffered data
     QByteArray rcount;
     QDataStream rcount_qds(&rcount, QIODevice::WriteOnly);
-    rcount_qds << results_requested;
+    rcount_qds << (int)results_smiles.size();
     clientConnection->write(rcount);
     clientConnection->write(output_smiles);
     clientConnection->write(output_ids);

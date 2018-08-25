@@ -18,7 +18,9 @@ using std::vector;
 void FingerprintDB::search_cpu (const Fingerprint& query,
         std::vector<char*>& results_smiles,
         std::vector<char*>& results_ids,
-        std::vector<float>& results_scores, unsigned int return_count) const
+        std::vector<float>& results_scores,
+        unsigned int return_count,
+        float similarity_cutoff) const
 {
     const int total = count();
     vector<int> indices(total);

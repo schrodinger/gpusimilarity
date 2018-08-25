@@ -9,6 +9,7 @@ include_directories(${Boost_INCLUDE_DIRS})
 add_boost_test(test_gpusim.cpp gpusim ${Boost_LIBRARY_DIRS}:${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR})
 
 configure_file(small.fsim small.fsim COPYONLY)
+configure_file(small.fsim small_copy.fsim COPYONLY)
 # Force -fPIC on executable. This is Qt bug.
 # https://bugreports.qt.io/browse/QTBUG-51593
 # https://cmake.org/Bug/view.php?id=9659

@@ -37,8 +37,12 @@ struct TanimotoFunctor {
     const int* m_ref_fp;
     const int m_fp_intsize;
     const int* m_dbdata;
+    const float m_similarity_cutoff;
 
-    TanimotoFunctor(const DFingerprint& ref_fp, int fp_intsize, const device_vector<int>& dbdata) : m_ref_fp(ref_fp.data().get()),m_fp_intsize(fp_intsize),m_dbdata(dbdata.data().get())
+    TanimotoFunctor(const DFingerprint& ref_fp, int fp_intsize,
+            const device_vector<int>& dbdata, float similarity_cutoff) :
+        m_ref_fp(ref_fp.data().get()),m_fp_intsize(fp_intsize),m_dbdata(dbdata.data().get()),
+        m_similarity_cutoff(similarity_cutoff)
         {};
 
     __device__ float
@@ -53,8 +57,8 @@ struct TanimotoFunctor {
             total += __popc(fp1) + __popc(fp2); 
             common += __popc(fp1 & fp2);
         }
-
-        return (float)common / (float)(total-common);
+        float score = static_cast<float>(common) / static_cast<float>(total-common);
+        return score >= m_similarity_cutoff ? score : 0;
     };
 };
 
@@ -117,14 +121,17 @@ Fingerprint FingerprintDB::getFingerprint(unsigned int index) const
 }
 
 
-void FingerprintDB::search (const Fingerprint& query,
+void FingerprintDB::search(const Fingerprint& query,
         std::vector<char*>& results_smiles,
         std::vector<char*>& results_ids,
-        std::vector<float>& results_scores, unsigned int return_count) const
+        std::vector<float>& results_scores,
+        unsigned int return_count,
+        float similarity_cutoff) const
 {
     device_vector<int> d_results_indices(count());
     device_vector<float> d_results_scores(count());
-    return_count = min(return_count, count()); // Prevent buffer overflow
+    vector<int> indices;
+    int results_to_consider = 0;
 
     try
     {
@@ -144,45 +151,65 @@ void FingerprintDB::search (const Fingerprint& query,
     // Use Tanimoto to score similarity of all compounds to query fingerprint
     thrust::transform(d_results_indices.begin(), d_results_indices.end(),
             d_results_scores.begin(),
-            TanimotoFunctor(d_ref_fp, folded_fp_intsize, m_priv->d_data));
+            TanimotoFunctor(d_ref_fp, folded_fp_intsize, m_priv->d_data,
+                similarity_cutoff));
+
+    auto indices_end = d_results_indices.end();
+    auto scores_end = d_results_scores.end();
+    if(similarity_cutoff > 0) {
+        indices_end = thrust::remove_if(d_results_indices.begin(),
+                d_results_indices.end(), d_results_scores.begin(),
+                thrust::logical_not<bool>());
+        scores_end = thrust::remove(d_results_scores.begin(),
+                d_results_scores.end(), 0);
+    }
+    unsigned int indices_size = std::distance(d_results_indices.begin(),
+            indices_end);
 
     // Sort scores & indices vectors descending on score
-    thrust::sort_by_key(d_results_scores.begin(), d_results_scores.end(),
+    thrust::sort_by_key(d_results_scores.begin(), scores_end,
             d_results_indices.begin(), thrust::greater<float>());
+
+    results_to_consider = std::min(indices_size, return_count*m_fold_factor);
+
+    indices.assign(d_results_indices.begin(), 
+            d_results_indices.begin()+results_to_consider);
+
     } catch(thrust::system_error e) {
         cerr << "Error!  " << e.what() << endl;
     }
 
+
     if(m_fold_factor == 1) { // If we don't fold, we can take exact GPU results
         // Push top return_count results to CPU results vectors to be returned
-        for(unsigned int i=0;i<return_count;i++) {
+        for(unsigned int i=0;i<results_to_consider;i++) {
             results_smiles.push_back(m_smiles[d_results_indices[i]]);
             results_ids.push_back(m_ids[d_results_indices[i]]);
         }
         results_scores.assign(d_results_scores.begin(),
-                d_results_scores.begin()+return_count);
+                d_results_scores.begin()+results_to_consider);
     } else { // If we folded, we need to recalculate scores with full fingerprints
-        int max_consider = std::min(return_count*m_fold_factor,
-                (unsigned int)d_results_indices.size());
-        vector<int> indices(max_consider);
-        results_scores.resize(max_consider);
-        for(unsigned int i=0; i<max_consider; i++) {
-            indices[i] = d_results_indices[i];
+        results_scores.resize(results_to_consider);
+        for(unsigned int i=0;i<results_to_consider;i++) {
             results_scores[i] = tanimoto_similarity_cpu(query,
                     getFingerprint(indices[i]));
-            cerr << results_scores[i] << " vs " << d_results_scores[i] << endl;
+            // Uncomment below to debug pre vs post folding scores
+            // cerr << results_scores[i] << " vs " << d_results_scores[i] << endl;
         }
         top_results_bubble_sort(indices, results_scores, return_count);
 
+        return_count = std::min((size_t)return_count, indices.size());
         results_scores.resize(return_count);
         for(unsigned int i=0;i<return_count;i++) {
+            // Check whether the re-scored similarity is too low
+            if(results_scores[i] < similarity_cutoff) {
+                results_scores.resize(i);
+                break;
+            }
             results_ids.push_back(m_ids[indices[i]]);
             results_smiles.push_back(m_smiles[indices[i]]);
         }
     }
-
-
-
 }
 
 /**
