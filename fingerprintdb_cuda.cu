@@ -57,7 +57,7 @@ struct TanimotoFunctor {
             total += __popc(fp1) + __popc(fp2); 
             common += __popc(fp1 & fp2);
         }
-        float score = (float)common / (float)(total-common);
+        float score = static_cast<float>(common) / static_cast<float>(total-common);
         return score >= m_similarity_cutoff ? score : 0;
     };
 };

@@ -16,7 +16,7 @@ void TanimotoFunctorCPU::operator()(const int& fp_index) const
         common += __builtin_popcount(fp1 & fp2);
     }
 
-    m_output[fp_index] = (float)common / (float)(total-common);
+    m_output[fp_index] = static_cast<float>(common) / static_cast<float>(total-common);
 }
 
 void FoldFingerprintFunctorCPU::operator()(const int& fp_index) const
