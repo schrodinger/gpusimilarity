@@ -39,6 +39,10 @@ int main(int argc, char* argv[])
 
     bool ok = false;
     auto gpu_bitcount = parser.value(gpuBitcountOption).toInt(&ok);
+    if(!ok) {
+        qDebug() << "GPU Bitcount must be an integer";
+        return 1;
+    }
 
     if(parser.isSet(cpuOnlyOption) && gpu_bitcount != 0) {
         qDebug() << "--cpu_only and --gpu_bitcount are incompatible options";
@@ -53,12 +57,6 @@ int main(int argc, char* argv[])
             return 1;
         }
     }
-
-    if(!ok) {
-        qDebug() << "GPU Bitcount must be an integer";
-        return 1;
-    }
-
 
     GPUSimServer gpusim(db_fnames, gpu_bitcount);
     gpusim.setUseGPU(!parser.isSet(cpuOnlyOption));
