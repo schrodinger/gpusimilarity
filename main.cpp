@@ -40,7 +40,7 @@ int main(int argc, char* argv[])
     bool ok = false;
     auto gpu_bitcount = parser.value(gpuBitcountOption).toInt(&ok);
 
-    if(parser.isSet(cpuOnlyOption) && parser.isSet(gpuBitcountOption)) {
+    if(parser.isSet(cpuOnlyOption) && gpu_bitcount != 0) {
         qDebug() << "--cpu_only and --gpu_bitcount are incompatible options";
         return 1;
     }
