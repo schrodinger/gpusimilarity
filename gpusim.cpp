@@ -126,7 +126,6 @@ void GPUSimServer::extractData(const QString& database_fname,
         throw std::runtime_error("Database version incompatible with this GPUSim version");
     }
 
-    int fp_qba_count, smi_qba_count, id_qba_count;
     datastream >> fp_bitcount;
     datastream >> fp_count;
 
@@ -134,6 +133,7 @@ void GPUSimServer::extractData(const QString& database_fname,
     smiles_vector.reserve(fp_count);
     ids_vector.reserve(fp_count);
 
+    int fp_qba_count;
     datastream >> fp_qba_count;
     for(int i=0; i<fp_qba_count; i++) {
         QByteArray fp_qba;
@@ -142,8 +142,9 @@ void GPUSimServer::extractData(const QString& database_fname,
                 std::back_inserter(fingerprint_data));
     }
 
+    int smi_qba_count;
     datastream >> smi_qba_count;
-    for(int i=0; i<fp_qba_count; i++) {
+    for(int i=0; i<smi_qba_count; i++) {
         QByteArray smi_qba;
         datastream >> smi_qba;
         // Extract smiles vector from serialized data
@@ -155,8 +156,9 @@ void GPUSimServer::extractData(const QString& database_fname,
         }
     }
 
+    int id_qba_count;
     datastream >> id_qba_count;
-    for(int i=0; i<fp_qba_count; i++) {
+    for(int i=0; i<id_qba_count; i++) {
         QByteArray id_qba;
         datastream >> id_qba;
         // Extract smiles vector from serialized data
@@ -167,7 +169,6 @@ void GPUSimServer::extractData(const QString& database_fname,
             ids_vector.push_back(id);
         }
     }
-    qDebug() << ids_vector[0];
 }
 
 bool GPUSimServer::setupSocket(const QString& socket_name)

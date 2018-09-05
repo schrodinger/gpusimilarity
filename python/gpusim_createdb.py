@@ -10,7 +10,8 @@ import gzip
 
 import gpusim_utils
 
-DATA_VERSION = 2
+DATABASE_VERSION = 2
+GIGABYTE_SIZE = 2**30
 
 
 def parse_args():
@@ -52,14 +53,14 @@ class FPData:
 
     def checkQBASize(self, qba_list, qds):
         """
-        If the current QByteArray has hit its limit, create a new one, and return
-        the new QDataStream to that array
+        If the current QByteArray has hit its limit, create a new one, and
+        return the new QDataStream to that array
         @param qba_list: List of QByteArrays holding relevant data
         @type  qba_list: [QByteArray, ...]
         @param qds: Stream to currently used QByteArray
         @type  qds: QDataStream
         """
-        if qba_list[-1].size() < 2**30:
+        if qba_list[-1].size() < GIGABYTE_SIZE:
             return qds
 
         qba_list.append(QtCore.QByteArray())
@@ -126,7 +127,7 @@ def main():
     # Set version so that files will be usable cross-release
     qds.setVersion(QtCore.QDataStream.Qt_5_2)
 
-    qds.writeInt(DATA_VERSION)
+    qds.writeInt(DATABASE_VERSION)
     qds.writeInt(gpusim_utils.BITCOUNT)
     qds.writeInt(count)
     fpdata.writeData(qds)
