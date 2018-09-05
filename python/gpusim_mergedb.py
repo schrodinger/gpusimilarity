@@ -8,7 +8,7 @@ python3 gpusmi_mergedb.py in1.fsim in2.fsim in3.fsim -o out.fsim
 
 from PyQt5 import QtCore
 
-import gpusim_utils
+from gpusim_createdb import DATABASE_VERSION
 
 
 def parse_args():
@@ -31,9 +31,9 @@ def main():
     # Set version so that files will be usable cross-release
     qds.setVersion(QtCore.QDataStream.Qt_5_2)
 
-    smi_byte_data = QtCore.QByteArray()
-    id_byte_data = QtCore.QByteArray()
-    fp_byte_data = QtCore.QByteArray()
+    smi_byte_data = []
+    id_byte_data = []
+    fp_byte_data = []
 
     count = 0
     bitcount = None
@@ -41,30 +41,34 @@ def main():
         dbf = QtCore.QFile(dbname)
         dbf.open(QtCore.QIODevice.ReadOnly)
         dbds = QtCore.QDataStream(dbf)
-        size = QtCore.QSize(0, 0)
-        dbds >> size
+        version = dbds.readInt()
+        if version != DATABASE_VERSION:
+            raise RuntimeError("Input database not compatible with this "
+                               "version of GPUSim")
+        in_bitcount = dbds.readInt()
+        in_count = dbds.readInt()
         if bitcount is None:
-            bitcount = size.width()
-        elif bitcount != size.width():
+            bitcount = in_bitcount
+        elif bitcount != in_bitcount:
             raise ValueError("Can't mix databases with different "
                              "fingerprint bitcounts")
-        local_smi_byte_data = QtCore.QByteArray()
-        local_id_byte_data = QtCore.QByteArray()
-        local_fp_byte_data = QtCore.QByteArray()
-        dbds >> local_fp_byte_data
-        dbds >> local_smi_byte_data
-        dbds >> local_id_byte_data
-        fp_byte_data.append(local_fp_byte_data)
-        smi_byte_data.append(local_smi_byte_data)
-        id_byte_data.append(local_id_byte_data)
-        count += size.height()
+        for qba_list in [fp_byte_data, smi_byte_data, id_byte_data]:
+            list_len = dbds.readInt()
+            for i in range(list_len):
+                byte_data = QtCore.QByteArray()
+                dbds >> byte_data
+                qba_list.append(byte_data)
+
+        count += in_count
 
     print("Writing new database with {0} entries.".format(count))
-    size = QtCore.QSize(gpusim_utils.BITCOUNT, count)
-    qds << size
-    qds << fp_byte_data
-    qds << smi_byte_data
-    qds << id_byte_data
+    qds.writeInt(DATABASE_VERSION)
+    qds.writeInt(bitcount)
+    qds.writeInt(count)
+    for qba_list in [fp_byte_data, smi_byte_data, id_byte_data]:
+        qds.writeInt(len(qba_list))
+        for byte_data in qba_list:
+            qds << byte_data
 
     qf.close()
 
