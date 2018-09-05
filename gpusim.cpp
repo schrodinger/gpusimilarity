@@ -32,22 +32,24 @@ using std::vector;
 using gpusim::FingerprintDB;
 using gpusim::Fingerprint;
 
+const int DATABASE_VERSION = 2;
+
 namespace gpusim
 {
 GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
 {
     for(auto database_fname : database_fnames) {
         // Read from .fsim file into byte arrays
-        QSize fingerprint_size;
-        QByteArray fingerprint_data;
+        int fp_bitcount, fp_count;
+        vector<char> fingerprint_data;
         vector<char*> smiles_vector;
         vector<char*> ids_vector;
-        extractData(database_fname, fingerprint_size, fingerprint_data,
+        extractData(database_fname, fp_bitcount, fp_count, fingerprint_data,
                 smiles_vector, ids_vector);
 
         // Create new FingerprintDB for querying on GPU
         auto fps = std::shared_ptr<FingerprintDB>(new FingerprintDB(
-                fingerprint_size.width(), fingerprint_size.height(),
+                fp_bitcount, fp_count,
                 fingerprint_data.data(), smiles_vector, ids_vector));
 
         QFileInfo file_info(database_fname);
@@ -107,8 +109,9 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
 };
 
 void GPUSimServer::extractData(const QString& database_fname,
-                                QSize& fingerprint_size,
-                                QByteArray& fingerprint_data,
+                                int& fp_bitcount,
+                                int& fp_count,
+                                vector<char>& fingerprint_data,
                                 vector<char*>& smiles_vector,
                                 vector<char*>& ids_vector)
 {
@@ -117,27 +120,48 @@ void GPUSimServer::extractData(const QString& database_fname,
     QDataStream datastream(&file);
     // Set version so that files will be usable cross-release
     datastream.setVersion(QDataStream::Qt_5_2);
-
-    QByteArray smi_data, id_data;
-    datastream >> fingerprint_size;
-    datastream >> fingerprint_data;
-    datastream >> smi_data;
-    datastream >> id_data;
-
-    int count = fingerprint_size.height();
-    smiles_vector.resize(count);
-    ids_vector.resize(count);
-
-    // Extract smiles vector from serialized data
-    QDataStream smi_stream(smi_data);
-    for (int i = 0; i < count; i++) {
-        smi_stream >> smiles_vector[i];
+    int version;
+    datastream >> version;
+    if(version != DATABASE_VERSION) {
+        throw std::runtime_error("Database version incompatible with this GPUSim version");
     }
 
-    // Extract ID vector from serialized data
-    QDataStream id_stream(id_data);
-    for (int i = 0; i < count; i++) {
-        id_stream >> ids_vector[i];
+    int fp_qba_count, smi_qba_count, id_qba_count;
+    datastream >> fp_bitcount;
+    datastream >> fp_count;
+
+    fingerprint_data.reserve(fp_count * (fp_bitcount/8));
+    smiles_vector.resize(fp_count);
+    ids_vector.resize(fp_count);
+
+    datastream >> fp_qba_count;
+    for(int i=0; i<fp_qba_count; i++) {
+        QByteArray fp_qba;
+        datastream >> fp_qba;
+        std::copy(fp_qba.data(), fp_qba.data()+fp_qba.size(),
+                std::back_inserter(fingerprint_data));
+    }
+
+    datastream >> smi_qba_count;
+    for(int i=0; i<fp_qba_count; i++) {
+        QByteArray smi_qba;
+        datastream >> smi_qba;
+        // Extract smiles vector from serialized data
+        QDataStream smi_stream(smi_qba);
+        while(!smi_stream.atEnd()) {
+            smi_stream >> smiles_vector[i];
+        }
+    }
+
+    datastream >> id_qba_count;
+    for(int i=0; i<fp_qba_count; i++) {
+        QByteArray id_qba;
+        datastream >> id_qba;
+        // Extract smiles vector from serialized data
+        QDataStream id_stream(id_qba);
+        while(!id_stream.atEnd()) {
+            id_stream >> ids_vector[i];
+        }
     }
 }
 

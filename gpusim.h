@@ -80,9 +80,10 @@ class GPUSimServer : public QObject
     bool m_use_gpu = true;
 
     bool setupSocket(const QString& socket_name);
-    void extractData(const QString& database_fname, QSize& fingerprint_size,
-                     QByteArray& fingerprint_data,
-                     std::vector<char*>& smiles_vector,
-                     std::vector<char*>& ids_vector);
+    void extractData(const QString& database_fname, int& fp_bitcount,
+            int& fp_count,
+            std::vector<char>& fingerprint_data,
+            std::vector<char*>& smiles_vector,
+            std::vector<char*>& ids_vector);
 };
 }
