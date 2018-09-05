@@ -131,8 +131,8 @@ void GPUSimServer::extractData(const QString& database_fname,
     datastream >> fp_count;
 
     fingerprint_data.reserve(fp_count * (fp_bitcount/8));
-    smiles_vector.resize(fp_count);
-    ids_vector.resize(fp_count);
+    smiles_vector.reserve(fp_count);
+    ids_vector.reserve(fp_count);
 
     datastream >> fp_qba_count;
     for(int i=0; i<fp_qba_count; i++) {
@@ -149,7 +149,9 @@ void GPUSimServer::extractData(const QString& database_fname,
         // Extract smiles vector from serialized data
         QDataStream smi_stream(smi_qba);
         while(!smi_stream.atEnd()) {
-            smi_stream >> smiles_vector[i];
+            char* smi;
+            smi_stream >> smi;
+            smiles_vector.push_back(smi);
         }
     }
 
@@ -160,9 +162,12 @@ void GPUSimServer::extractData(const QString& database_fname,
         // Extract smiles vector from serialized data
         QDataStream id_stream(id_qba);
         while(!id_stream.atEnd()) {
-            id_stream >> ids_vector[i];
+            char* id;
+            id_stream >> id;
+            ids_vector.push_back(id);
         }
     }
+    qDebug() << ids_vector[0];
 }
 
 bool GPUSimServer::setupSocket(const QString& socket_name)
