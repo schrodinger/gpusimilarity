@@ -220,6 +220,7 @@ def parse_args():
                         help="Search the database on the CPU, not the GPU (slow)") #noqa
     parser.add_argument('--gpu_bitcount', default='0',
                         help="Provide the maximum bitcount for fingerprints on GPU") #noqa
+    parser.add_argument('--debug', action='store_true', help="Run the backend inside GDB")
     return parser.parse_args()
 
 

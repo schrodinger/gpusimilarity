@@ -30,7 +30,7 @@ void FingerprintDB::search_cpu (const Fingerprint& query,
 
     // Scoring parallelizes well, but bottleneck is now sorting
     QtConcurrent::blockingMap(indices,
-            TanimotoFunctorCPU(query, m_fp_intsize, m_data, scores));
+            TanimotoFunctorCPU(query, m_fp_intsize, m_storage[0]->m_data, scores));
 
     top_results_bubble_sort(indices, scores, return_count);
 
