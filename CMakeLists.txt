@@ -7,6 +7,7 @@ set(QT_MINIMAL_VERSION 5.2.0)
 set(BOOST_MINIMAL_VERSION 1.54.0)
 set(CUDA_MINIMAL_VERSION 8.0.61)
 set (CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall")
 
 
 # ccmake -DCMAKE_CUDA_COMPILER=path/to/nvcc ../gpusimilarity

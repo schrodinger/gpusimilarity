@@ -92,7 +92,7 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
     }
 
     if(gpu_bitcount > 0) {
-        int arg_fold_factor = max_fp_bitcount / gpu_bitcount;
+        unsigned int arg_fold_factor = max_fp_bitcount / gpu_bitcount;
         if (arg_fold_factor < fold_factor) {
             throw std::invalid_argument("GPU bitset not sufficiently small to fit on GPU");
         } 
@@ -246,7 +246,7 @@ void GPUSimServer::searchAll(const Fingerprint& query, int results_requested,
         similaritySearch(query, local_dbname, l_results_smiles, l_results_ids,
                 l_results_scores, results_requested, similarity_cutoff,
                 usingGPU() ? CalcType::GPU : CalcType::CPU);
-        for(int i=0; i<l_results_smiles.size(); i++) {
+        for(unsigned int i=0; i<l_results_smiles.size(); i++) {
             sortable_results.push_back(SortableResult(l_results_scores[i], 
                         ResultData(l_results_smiles[i], l_results_ids[i])));
         }
@@ -303,7 +303,7 @@ void GPUSimServer::incomingSearchRequest()
     QDataStream smiles_stream(&output_smiles, QIODevice::WriteOnly);
     QDataStream ids_stream(&output_ids, QIODevice::WriteOnly);
     QDataStream scores_stream(&output_scores, QIODevice::WriteOnly);
-    for (int i = 0; i < results_smiles.size(); i++) {
+    for (unsigned int i = 0; i < results_smiles.size(); i++) {
         smiles_stream << results_smiles[i];
         ids_stream << results_ids[i];
         scores_stream << results_scores[i];

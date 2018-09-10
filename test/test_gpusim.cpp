@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_CASE(FoldFingerprint)
     vector<int> answer(fp.size() / factor);
     gpusim::FoldFingerprintFunctorCPU(factor, fp.size(), fp, answer)(0);
 
-    for(int i=0; i<ref_answer.size(); i++){
+    for(unsigned int i=0; i<ref_answer.size(); i++){
     	BOOST_CHECK_EQUAL(answer[i], ref_answer[i]);
     }
 
