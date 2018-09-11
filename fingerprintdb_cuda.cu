@@ -35,8 +35,11 @@ unsigned int get_gpu_count()
     static int device_count = 0;
     static bool initialized = false;
 
-    if(!initialized) cudaGetDeviceCount(&device_count);
-    initialized = true;
+    if(!initialized) {
+        cudaGetDeviceCount(&device_count);
+        initialized = true;
+    }
+
     return device_count;
 }
 
@@ -92,14 +95,19 @@ class FingerprintDBPriv
 
 FingerprintDBStorage::FingerprintDBStorage(FingerprintDB* parent, std::vector<char>& fp_data, 
             int index_offset, int fp_bitcount) : m_parent(parent), m_index_offset(index_offset), 
-                                                 m_count(fp_data.size() / (fp_bitcount / 8)), m_gpu_device(get_next_gpu())
+                                                 m_count(fp_data.size() / (fp_bitcount / CHAR_BIT)),
+                                                 m_gpu_device(get_next_gpu())
 {
-    const int* int_data = (const int*)fp_data.data();
+    const int* int_data = reinterpret_cast<const int*>(fp_data.data());
     const size_t int_size = fp_data.size() / sizeof(int);
     m_data.assign(int_data, int_data+int_size);
 
 }
 
+unsigned int FingerprintDBStorage::getOffsetIndex(unsigned int without_offset)
+{
+    return without_offset + m_index_offset;
+}
 
 FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count,
             vector<vector<char> >& data,
@@ -111,8 +119,7 @@ FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count,
     m_total_count = fp_count;
 
     int current_fp_count = 0;
-    for(unsigned int i=0; i<data.size(); i++) {
-        auto& dataset = data[i];
+    for(auto& dataset : data) {
         auto storage = make_shared<FingerprintDBStorage>(this, dataset,
                     current_fp_count, fp_bitcount);
         storage->m_priv = make_shared<FingerprintDBPriv>();
@@ -124,7 +131,8 @@ FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count,
         throw std::runtime_error("Mismatch between FP count and data, potential database corruption.");
     }
 
-    m_total_data_size = (size_t)m_total_count*(size_t)m_fp_intsize*sizeof(int);
+    m_total_data_size = static_cast<size_t>(m_total_count) *
+        static_cast<size_t>(m_fp_intsize)*sizeof(int);
     qDebug() << "Database loaded with " << m_total_count << " molecules";
 
     // Optimization, take the underlying storage of the incoming vectors, 
@@ -143,14 +151,14 @@ void FingerprintDB::copyToGPU(unsigned int fold_factor)
     }
 
     if(m_fold_factor == 1) {
-        for(auto& storage : m_storage) {
+        for(const auto& storage : m_storage) {
             cudaSetDevice(storage->m_gpu_device);
             // Have to create vector where correct cuda device is set
             storage->m_priv->d_data = make_shared< device_vector<int> >();
             *(storage->m_priv->d_data) = storage->m_data;
         }
     } else {
-        for(auto& storage : m_storage) {
+        for(const auto& storage : m_storage) {
             cudaSetDevice(storage->m_gpu_device);
             // Have to create vector where correct cuda device is set
             storage->m_priv->d_data =  make_shared<device_vector<int> >();
@@ -160,20 +168,29 @@ void FingerprintDB::copyToGPU(unsigned int fold_factor)
     }
 }
 
+void FingerprintDB::getStorageAndLocalIndex(unsigned int offset_index,
+            FingerprintDBStorage** storage, unsigned int* local_index) const
+{
+    int slice_index_offset=0;
+    *storage = m_storage[0].get();
+    for(unsigned int i=1; i<m_storage.size(); i++) {
+        if(m_storage[i]->m_index_offset >= offset_index) break;
+        *storage = m_storage[i].get();
+        slice_index_offset = (*storage)->m_index_offset;
+    }
+    *local_index = offset_index - slice_index_offset;
+}
+
 
 Fingerprint FingerprintDB::getFingerprint(unsigned int index) const
 {
     Fingerprint output(m_fp_intsize);
-    int slice_index_offset=0;
-    auto storage = m_storage[0];
-    for(unsigned int i=1; i<m_storage.size(); i++) {
-        if(m_storage[i]->m_index_offset >= index) break;
-        storage = m_storage[i];
-        slice_index_offset = storage->m_index_offset;
-    }
-    index -= slice_index_offset;
 
-    unsigned int offset = index*m_fp_intsize;
+    FingerprintDBStorage* storage;
+    unsigned int local_index;
+    getStorageAndLocalIndex(index, &storage, &local_index);
+
+    unsigned int offset = local_index*m_fp_intsize;
     for(int i=0; i<m_fp_intsize; i++) {
         output[i] = storage->m_data[offset+i];
     }
@@ -244,7 +261,7 @@ void FingerprintDB::search_storage(const Fingerprint& query,
     if(m_fold_factor == 1) { // If we don't fold, we can take exact GPU results
         // Push top return_count results to CPU results vectors to be returned
         for(auto index : indices) {
-            int offset_index = index + storage->m_index_offset;
+            int offset_index = storage->getOffsetIndex(index);
             results_smiles.push_back(m_smiles[offset_index]);
             results_ids.push_back(m_ids[offset_index]);
         }
@@ -253,7 +270,7 @@ void FingerprintDB::search_storage(const Fingerprint& query,
     } else { // If we folded, we need to recalculate scores with full fingerprints
         results_scores.resize(indices.size());
         for(unsigned int i=0;i<indices.size();i++) {
-            int offset_index = indices[i] + storage->m_index_offset;
+            int offset_index = storage->getOffsetIndex(indices[i]);
             results_scores[i] = tanimoto_similarity_cpu(query,
                     getFingerprint(offset_index));
             // Uncomment below to debug pre vs post folding scores
@@ -269,8 +286,8 @@ void FingerprintDB::search_storage(const Fingerprint& query,
                 results_scores.resize(i);
                 break;
             }
-            results_ids.push_back(m_ids[indices[i]+storage->m_index_offset]);
-            results_smiles.push_back(m_smiles[indices[i]+storage->m_index_offset]);
+            results_ids.push_back(m_ids[storage->getOffsetIndex(indices[i])]);
+            results_smiles.push_back(m_smiles[storage->getOffsetIndex(indices[i])]);
         }
     }
 

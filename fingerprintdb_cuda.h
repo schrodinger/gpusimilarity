@@ -37,6 +37,7 @@ public:
 
     FingerprintDBStorage(FingerprintDB* parent, std::vector<char>& fp_data, 
             int index_offset, int fp_bitcount);
+    unsigned int getOffsetIndex(unsigned int without_offset);
 
 private:
     FingerprintDB* m_parent;
@@ -69,6 +70,15 @@ class FingerprintDB : public QObject
 
     // Total number of fingerprints in DB
     unsigned int count() const { return m_total_count; };
+
+    /*
+     * @brief
+     * This function takes an index in the range of all molecules, and finds
+     * which storage block that index is inside, and returns that storage block
+     * and the local index inside that block
+     */
+    void getStorageAndLocalIndex(unsigned int offset_index,
+            FingerprintDBStorage** storage, unsigned int* local_index) const;
 
     /**
      * @brief
