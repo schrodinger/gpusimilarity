@@ -45,7 +45,7 @@ private:
     std::shared_ptr<FingerprintDBPriv> m_priv; // Used to conceal cuda types
     const unsigned int m_index_offset;
     const int m_count;
-    const int m_gpu_device;
+    int m_gpu_device;
 };
     
 class FingerprintDB : public QObject

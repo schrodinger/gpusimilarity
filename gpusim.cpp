@@ -41,18 +41,18 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
     qDebug() << "--------------------------";
     qDebug() << "Starting up GPUSim Server";
     qDebug() << "--------------------------";
+    qDebug() << "Utilizing" << get_gpu_count() << "GPUs for calculation.";
+
     for(auto database_fname : database_fnames) {
         // Read from .fsim file into byte arrays
         int fp_bitcount, fp_count;
         vector<vector<char> > fingerprint_data;
         vector<char*> smiles_vector;
         vector<char*> ids_vector;
-        qDebug() << "Extracting data";
+        qDebug() << "Extracting data:" << database_fname;
         extractData(database_fname, fp_bitcount, fp_count, fingerprint_data,
                 smiles_vector, ids_vector);
         qDebug() << "Finished extracting data";
-
-        qDebug() << "Utilizing " << get_gpu_count() << " GPUs for calculation.";
 
         // Create new FingerprintDB for querying on GPU
         auto fps = std::shared_ptr<FingerprintDB>(new FingerprintDB(
@@ -63,7 +63,6 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
         QString socket_name = file_info.baseName();
         if (!setupSocket(socket_name))
             return;
-        qDebug() << "Setting up DB:  " << socket_name;
         m_databases[socket_name] = fps;
     }
     if (!setupSocket("all"))
@@ -95,7 +94,6 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
     {
         fold_factor = ceilf(
                 (float)total_db_memory / (float)gpu_memory);
-        qDebug() << "Folding databases by at least " << fold_factor << " to fit in gpu memory";
     }
 
     if(gpu_bitcount > 0) {
@@ -104,6 +102,10 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
             throw std::invalid_argument("GPU bitset not sufficiently small to fit on GPU");
         } 
         fold_factor = arg_fold_factor;
+    }
+
+    if(fold_factor > 1) {
+        qDebug() << "Folding databases by at least" << fold_factor << "to fit in gpu memory";
     }
 
     qInfo() << "Putting graphics card data up.";
@@ -130,7 +132,6 @@ void GPUSimServer::extractData(const QString& database_fname,
                                 vector<char*>& smiles_vector,
                                 vector<char*>& ids_vector)
 {
-    qDebug() << "Begin extracting data";
     QFile file(database_fname);
     file.open(QIODevice::ReadOnly);
     QDataStream datastream(&file);
@@ -194,7 +195,7 @@ bool GPUSimServer::setupSocket(const QString& socket_name)
         QString socket_location = QString("/tmp/%1").arg(socket_name);
         QFile::remove(socket_location);
         if (!server->listen(socket_name)) {
-            qDebug() << "Server start failed on " << socket_location;
+            qDebug() << "Server start failed on" << socket_location;
             auto app = QCoreApplication::instance();
             app->exit(1);
             return false;
@@ -305,7 +306,7 @@ void GPUSimServer::incomingSearchRequest()
                 usingGPU() ? CalcType::GPU : CalcType::CPU);
     }
 
-    qDebug() << "Search completed, time elapsed: " << (float)timer.elapsed() / 1000.0f;
+    qDebug() << "Search completed, time elapsed:" << (float)timer.elapsed() / 1000.0f;
 
     // Create QByteArrays and QDataStreams to write to corresponding arrays
     QByteArray output_smiles, output_ids, output_scores;

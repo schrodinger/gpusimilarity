@@ -43,10 +43,20 @@ unsigned int get_gpu_count()
     return device_count;
 }
 
-unsigned int get_next_gpu()
+unsigned int get_next_gpu(size_t required_memory)
 {
     static int next_device = 0;
-    return next_device++ % get_gpu_count(); // Divide by 0 if called w/o GPU
+    for(unsigned int i=0; i<get_gpu_count(); i++) {
+        int gpu = next_device++ % get_gpu_count(); // Divide by 0 if called w/o GPU
+        cudaSetDevice(gpu);
+        size_t free, total;
+        cudaMemGetInfo(&free, &total);
+        if(free > required_memory) {
+            return gpu;
+        }
+    }
+    throw std::runtime_error("Can't find a GPU with enough memory to copy data.");
+    return 0; // Never gets here, just for compiler happiness
 }
 
 typedef device_vector<int> DFingerprint;
@@ -95,8 +105,7 @@ class FingerprintDBPriv
 
 FingerprintDBStorage::FingerprintDBStorage(FingerprintDB* parent, std::vector<char>& fp_data, 
             int index_offset, int fp_bitcount) : m_parent(parent), m_index_offset(index_offset), 
-                                                 m_count(fp_data.size() / (fp_bitcount / CHAR_BIT)),
-                                                 m_gpu_device(get_next_gpu())
+                                                 m_count(fp_data.size() / (fp_bitcount / CHAR_BIT))
 {
     const int* int_data = reinterpret_cast<const int*>(fp_data.data());
     const size_t int_size = fp_data.size() / sizeof(int);
@@ -133,7 +142,7 @@ FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count,
 
     m_total_data_size = static_cast<size_t>(m_total_count) *
         static_cast<size_t>(m_fp_intsize)*sizeof(int);
-    qDebug() << "Database loaded with " << m_total_count << " molecules";
+    qDebug() << "Database loaded with" << m_total_count << "molecules";
 
     // Optimization, take the underlying storage of the incoming vectors, 
     // which won't be used again in calling code
@@ -152,6 +161,7 @@ void FingerprintDB::copyToGPU(unsigned int fold_factor)
 
     if(m_fold_factor == 1) {
         for(const auto& storage : m_storage) {
+            storage->m_gpu_device = get_next_gpu(storage->m_data.size() * sizeof(int));
             cudaSetDevice(storage->m_gpu_device);
             // Have to create vector where correct cuda device is set
             storage->m_priv->d_data = make_shared< device_vector<int> >();
@@ -159,10 +169,11 @@ void FingerprintDB::copyToGPU(unsigned int fold_factor)
         }
     } else {
         for(const auto& storage : m_storage) {
+            auto folded_data = fold_data(storage->m_data);
+            storage->m_gpu_device = get_next_gpu(folded_data.size() * sizeof(int));
             cudaSetDevice(storage->m_gpu_device);
             // Have to create vector where correct cuda device is set
             storage->m_priv->d_data =  make_shared<device_vector<int> >();
-            auto folded_data = fold_data(storage->m_data);
             *(storage->m_priv->d_data) = folded_data;
         }
     }
@@ -255,7 +266,7 @@ void FingerprintDB::search_storage(const Fingerprint& query,
                 d_results_indices.begin()+results_to_consider);
 
     } catch(thrust::system_error e) {
-        qDebug() << "Error!  " << e.what();
+        qDebug() << "Error!" << e.what();
     }
 
     if(m_fold_factor == 1) { // If we don't fold, we can take exact GPU results
@@ -358,6 +369,7 @@ size_t get_available_gpu_memory()
         size_t lfree;
         cudaSetDevice(i);
         cudaMemGetInfo(&lfree, &total);
+        qDebug() << "GPU" << i << "free:" << lfree;
         free += lfree;
     }
 
