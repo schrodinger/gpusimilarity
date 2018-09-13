@@ -260,7 +260,8 @@ void FingerprintDB::search_storage(const Fingerprint& query,
                 d_results_indices.begin(), thrust::greater<float>());
 
         int results_to_consider = 0;
-        results_to_consider = std::min(indices_size, return_count*m_fold_factor);
+        results_to_consider = std::min(indices_size,
+                return_count*m_fold_factor*4);
 
         indices.assign(d_results_indices.begin(), 
                 d_results_indices.begin()+results_to_consider);
