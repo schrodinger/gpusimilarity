@@ -152,7 +152,9 @@ void GPUSimServer::extractData(const QString& database_fname,
     int fp_qba_count;
     datastream >> fp_qba_count;
     fingerprint_data.resize(fp_qba_count);
+    int current_qba = 1;
     for(auto& fp_vector : fingerprint_data) {
+        qDebug() << "  loading" << current_qba++ << "of" << fp_qba_count;
         QByteArray fp_qba;
         datastream >> fp_qba;
         fp_vector.reserve(fp_qba.size());
