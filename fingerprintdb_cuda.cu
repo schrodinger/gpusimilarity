@@ -370,12 +370,12 @@ float FingerprintDB::tanimoto_similarity_cpu(const Fingerprint& fp1,
     return (float)common / (float)(total-common);
 }
 
+
 size_t get_available_gpu_memory()
 {
-    size_t free=0, total=0;
+    size_t free=0;
     for(unsigned int gpu=0; gpu<get_gpu_count(); gpu++) {
-        size_t lfree;
-        auto free = get_gpu_free_memory(gpu);
+        auto lfree = get_gpu_free_memory(gpu);
         free += lfree;
     }
 

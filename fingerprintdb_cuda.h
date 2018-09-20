@@ -28,7 +28,7 @@ typedef std::pair<char*, char*> ResultData;
 typedef std::pair<float, ResultData > SortableResult;
 
 unsigned int get_gpu_count();
-unsigned int get_next_gpu();
+unsigned int get_next_gpu(size_t required_memory);
 
 class FingerprintDBStorage
 {

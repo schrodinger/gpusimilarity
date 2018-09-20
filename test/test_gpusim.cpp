@@ -155,10 +155,10 @@ BOOST_AUTO_TEST_CASE(getNextGPU)
     if(gpucount == 0) return;
     // Make sure first go around gets every valid GPU
     for(unsigned int i=0; i<gpucount; i++) {
-        BOOST_CHECK_EQUAL(i, gpusim::get_next_gpu());
+        BOOST_CHECK_EQUAL(i, gpusim::get_next_gpu(1));
     }
     // Make sure second go around loops through them all again
     for(unsigned int i=0; i<gpucount; i++) {
-        BOOST_CHECK_EQUAL(i, gpusim::get_next_gpu());
+        BOOST_CHECK_EQUAL(i, gpusim::get_next_gpu(1));
     }
 }
