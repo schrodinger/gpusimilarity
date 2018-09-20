@@ -30,6 +30,14 @@ using thrust::device_vector;
 namespace gpusim
 {
 
+size_t get_gpu_free_memory(unsigned int device_index)
+{
+    cudaSetDevice(device_index);
+    size_t free, total;
+    cudaMemGetInfo(&free, &total);
+    return free;
+}
+
 unsigned int get_gpu_count()
 {
     static int device_count = 0;
@@ -48,9 +56,7 @@ unsigned int get_next_gpu(size_t required_memory)
     static int next_device = 0;
     for(unsigned int i=0; i<get_gpu_count(); i++) {
         int gpu = next_device++ % get_gpu_count(); // Divide by 0 if called w/o GPU
-        cudaSetDevice(gpu);
-        size_t free, total;
-        cudaMemGetInfo(&free, &total);
+        auto free = get_gpu_free_memory(i);
         if(free > required_memory) {
             return gpu;
         }
@@ -268,6 +274,7 @@ void FingerprintDB::search_storage(const Fingerprint& query,
 
     } catch(thrust::system_error e) {
         qDebug() << "Error!" << e.what();
+        throw;
     }
 
     if(m_fold_factor == 1) { // If we don't fold, we can take exact GPU results
@@ -366,11 +373,9 @@ float FingerprintDB::tanimoto_similarity_cpu(const Fingerprint& fp1,
 size_t get_available_gpu_memory()
 {
     size_t free=0, total=0;
-    for(unsigned int i=0; i<get_gpu_count(); i++) {
+    for(unsigned int gpu=0; gpu<get_gpu_count(); gpu++) {
         size_t lfree;
-        cudaSetDevice(i);
-        cudaMemGetInfo(&lfree, &total);
-        qDebug() << "GPU" << i << "free:" << lfree;
+        auto free = get_gpu_free_memory(gpu);
         free += lfree;
     }
 
