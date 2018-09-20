@@ -17,11 +17,11 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QSize>
+#include <QTime>
 
 #include <algorithm>
 #include <exception>
 #include <math.h>
-#include <sys/time.h>
 
 #include "fingerprintdb_cuda.h"
 #include "local_qinfo.h"
@@ -38,25 +38,31 @@ namespace gpusim
 {
 GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
 {
+    qDebug() << "--------------------------";
+    qDebug() << "Starting up GPUSim Server";
+    qDebug() << "--------------------------";
+    qDebug() << "Utilizing" << get_gpu_count() << "GPUs for calculation.";
+
     for(auto database_fname : database_fnames) {
         // Read from .fsim file into byte arrays
         int fp_bitcount, fp_count;
-        vector<char> fingerprint_data;
+        vector<vector<char> > fingerprint_data;
         vector<char*> smiles_vector;
         vector<char*> ids_vector;
+        qDebug() << "Extracting data:" << database_fname;
         extractData(database_fname, fp_bitcount, fp_count, fingerprint_data,
                 smiles_vector, ids_vector);
+        qDebug() << "Finished extracting data";
 
         // Create new FingerprintDB for querying on GPU
         auto fps = std::shared_ptr<FingerprintDB>(new FingerprintDB(
                 fp_bitcount, fp_count,
-                fingerprint_data.data(), smiles_vector, ids_vector));
+                fingerprint_data, smiles_vector, ids_vector));
 
         QFileInfo file_info(database_fname);
         QString socket_name = file_info.baseName();
         if (!setupSocket(socket_name))
             return;
-        qDebug() << "Setting up DB:  " << socket_name;
         m_databases[socket_name] = fps;
     }
     if (!setupSocket("all"))
@@ -88,7 +94,6 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
     {
         fold_factor = ceilf(
                 (float)total_db_memory / (float)gpu_memory);
-        qDebug() << "Folding databases by " << fold_factor << " to fit in gpu memory";
     }
 
     if(gpu_bitcount > 0) {
@@ -99,19 +104,31 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
         fold_factor = arg_fold_factor;
     }
 
+    if(fold_factor > 1) {
+        qDebug() << "Folding databases by at least" << fold_factor << "to fit in gpu memory";
+    }
+
     qInfo() << "Putting graphics card data up.";
-    for(auto db : m_databases) {
-        db->copyToGPU(fold_factor);
+    if(usingGPU())
+    {
+        for(auto db : m_databases) {
+            db->copyToGPU(fold_factor);
+        }
     }
     qInfo() << "Finished putting graphics card data up.";
 
     qInfo() << "Ready for searches.";
 };
 
+bool GPUSimServer::usingGPU()
+{
+    return m_use_gpu && (get_gpu_count() != 0);
+}
+
 void GPUSimServer::extractData(const QString& database_fname,
                                 int& fp_bitcount,
                                 int& fp_count,
-                                vector<char>& fingerprint_data,
+                                vector<vector<char> >& fingerprint_data,
                                 vector<char*>& smiles_vector,
                                 vector<char*>& ids_vector)
 {
@@ -129,17 +146,19 @@ void GPUSimServer::extractData(const QString& database_fname,
     datastream >> fp_bitcount;
     datastream >> fp_count;
 
-    fingerprint_data.reserve(fp_count * (fp_bitcount/8));
     smiles_vector.reserve(fp_count);
     ids_vector.reserve(fp_count);
 
     int fp_qba_count;
     datastream >> fp_qba_count;
-    for(int i=0; i<fp_qba_count; i++) {
+    fingerprint_data.resize(fp_qba_count);
+    int current_qba = 1;
+    for(auto& fp_vector : fingerprint_data) {
+        qDebug() << "  loading" << current_qba++ << "of" << fp_qba_count;
         QByteArray fp_qba;
         datastream >> fp_qba;
-        std::copy(fp_qba.data(), fp_qba.data()+fp_qba.size(),
-                std::back_inserter(fingerprint_data));
+        fp_vector.reserve(fp_qba.size());
+        fp_vector.insert(fp_vector.begin(), fp_qba.data(), fp_qba.data()+fp_qba.size());
     }
 
     int smi_qba_count;
@@ -178,7 +197,7 @@ bool GPUSimServer::setupSocket(const QString& socket_name)
         QString socket_location = QString("/tmp/%1").arg(socket_name);
         QFile::remove(socket_location);
         if (!server->listen(socket_name)) {
-            qDebug() << "Server start failed on " << socket_location;
+            qDebug() << "Server start failed on" << socket_location;
             auto app = QCoreApplication::instance();
             app->exit(1);
             return false;
@@ -197,10 +216,6 @@ void GPUSimServer::similaritySearch(const Fingerprint& reference,
         vector<float>& results_scores, unsigned int return_count,
         float similarity_cutoff, CalcType calc_type)
 {
-    struct timeval tval_before, tval_after, tval_result;
-    gettimeofday(&tval_before, nullptr);
-    qDebug() << "Similarity Cutoff!" << similarity_cutoff;
-
     if(calc_type == CalcType::GPU) {
         m_databases[dbname]->search(reference, results_smiles, results_ids,
                 results_scores, return_count, similarity_cutoff);
@@ -208,14 +223,6 @@ void GPUSimServer::similaritySearch(const Fingerprint& reference,
         m_databases[dbname]->search_cpu(reference, results_smiles, results_ids,
                 results_scores, return_count, similarity_cutoff);
     }
-
-    gettimeofday(&tval_after, nullptr);
-
-    timersub(&tval_after, &tval_before, &tval_result);
-
-    // Using printf here because decimal formatting like this is a PITA w/ cout
-    printf("Search completed, time elapsed: %ld.%06ld\n",
-           (long int) tval_result.tv_sec, (long int) tval_result.tv_usec);
 };
 
 void GPUSimServer::newConnection()
@@ -289,6 +296,9 @@ void GPUSimServer::incomingSearchRequest()
     vector<char *> results_smiles, results_ids;
     vector<float> results_scores;
     
+    QTime timer;
+    timer.start();
+
     if(dbname == "all") {
         searchAll(query, results_requested, similarity_cutoff, results_smiles,
                 results_ids, results_scores);
@@ -297,6 +307,8 @@ void GPUSimServer::incomingSearchRequest()
                 results_scores, results_requested, similarity_cutoff,
                 usingGPU() ? CalcType::GPU : CalcType::CPU);
     }
+
+    qDebug() << "Search completed, time elapsed:" << (float)timer.elapsed() / 1000.0f;
 
     // Create QByteArrays and QDataStreams to write to corresponding arrays
     QByteArray output_smiles, output_ids, output_scores;

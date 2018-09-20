@@ -73,7 +73,7 @@ class GPUSimServer : public QObject
      */
     void incomingSearchRequest();
     void setUseGPU(bool use_gpu) { m_use_gpu = use_gpu; }
-    bool usingGPU(){ return m_use_gpu; }
+    bool usingGPU();
 
   private:
     QHash<QString, std::shared_ptr<FingerprintDB>> m_databases;
@@ -82,7 +82,7 @@ class GPUSimServer : public QObject
     bool setupSocket(const QString& socket_name);
     void extractData(const QString& database_fname, int& fp_bitcount,
             int& fp_count,
-            std::vector<char>& fingerprint_data,
+            std::vector<std::vector<char> >& fingerprint_data,
             std::vector<char*>& smiles_vector,
             std::vector<char*>& ids_vector);
 };

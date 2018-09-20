@@ -17,14 +17,53 @@
 #include <thrust/sequence.h>
 #include <thrust/sort.h>
 
-using std::cerr;
-using std::endl;
+#include <QtConcurrent/QtConcurrentRun>
+#include <QDebug>
+#include <QFuture>
+#include <QMutex>
+
+using std::make_shared;
+using std::pair;
 using std::vector;
 using thrust::device_vector;
 
-
 namespace gpusim
 {
+
+size_t get_gpu_free_memory(unsigned int device_index)
+{
+    cudaSetDevice(device_index);
+    size_t free, total;
+    cudaMemGetInfo(&free, &total);
+    return free;
+}
+
+unsigned int get_gpu_count()
+{
+    static int device_count = 0;
+    static bool initialized = false;
+
+    if(!initialized) {
+        cudaGetDeviceCount(&device_count);
+        initialized = true;
+    }
+
+    return device_count;
+}
+
+unsigned int get_next_gpu(size_t required_memory)
+{
+    static int next_device = 0;
+    for(unsigned int i=0; i<get_gpu_count(); i++) {
+        int gpu = next_device++ % get_gpu_count(); // Divide by 0 if called w/o GPU
+        auto free = get_gpu_free_memory(i);
+        if(free > required_memory) {
+            return gpu;
+        }
+    }
+    throw std::runtime_error("Can't find a GPU with enough memory to copy data.");
+    return 0; // Never gets here, just for compiler happiness
+}
 
 typedef device_vector<int> DFingerprint;
 
@@ -66,23 +105,50 @@ struct TanimotoFunctor {
 class FingerprintDBPriv
 {
     public:
-        device_vector<int> d_data;
+        std::shared_ptr<device_vector<int> > d_data;
 
 };
 
+FingerprintDBStorage::FingerprintDBStorage(FingerprintDB* parent, std::vector<char>& fp_data, 
+            int index_offset, int fp_bitcount) : m_parent(parent), m_index_offset(index_offset), 
+                                                 m_count(fp_data.size() / (fp_bitcount / CHAR_BIT))
+{
+    const int* int_data = reinterpret_cast<const int*>(fp_data.data());
+    const size_t int_size = fp_data.size() / sizeof(int);
+    m_data.assign(int_data, int_data+int_size);
 
-FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count, const char* data,
+}
+
+unsigned int FingerprintDBStorage::getOffsetIndex(unsigned int without_offset)
+{
+    return without_offset + m_index_offset;
+}
+
+FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count,
+            vector<vector<char> >& data,
             vector<char*>& smiles_vector,
             std::vector<char*>& ids_vector)
 {
 
-    m_priv = std::make_shared<FingerprintDBPriv>();
     m_fp_intsize = fp_bitcount / (sizeof(int)*8);  //ASSUMES INT-DIVISIBLE SIZE
-    m_count = fp_count;
+    m_total_count = fp_count;
 
-    m_data_size = m_fp_intsize*m_count;
-    const int* int_data = (const int*)data;
-    m_data.assign(int_data, int_data+m_data_size);
+    int current_fp_count = 0;
+    for(auto& dataset : data) {
+        auto storage = make_shared<FingerprintDBStorage>(this, dataset,
+                    current_fp_count, fp_bitcount);
+        storage->m_priv = make_shared<FingerprintDBPriv>();
+        m_storage.push_back(storage);
+        current_fp_count += storage->m_data.size() / m_fp_intsize;
+    }
+
+    if(current_fp_count != m_total_count) {
+        throw std::runtime_error("Mismatch between FP count and data, potential database corruption.");
+    }
+
+    m_total_data_size = static_cast<size_t>(m_total_count) *
+        static_cast<size_t>(m_fp_intsize)*sizeof(int);
+    qDebug() << "Database loaded with" << m_total_count << "molecules";
 
     // Optimization, take the underlying storage of the incoming vectors, 
     // which won't be used again in calling code
@@ -100,11 +166,36 @@ void FingerprintDB::copyToGPU(unsigned int fold_factor)
     }
 
     if(m_fold_factor == 1) {
-        m_priv->d_data = m_data;
+        for(const auto& storage : m_storage) {
+            storage->m_gpu_device = get_next_gpu(storage->m_data.size() * sizeof(int));
+            cudaSetDevice(storage->m_gpu_device);
+            // Have to create vector where correct cuda device is set
+            storage->m_priv->d_data = make_shared< device_vector<int> >();
+            *(storage->m_priv->d_data) = storage->m_data;
+        }
     } else {
-        m_folded_data = fold_data(m_data);
-        m_priv->d_data = m_folded_data;
+        for(const auto& storage : m_storage) {
+            auto folded_data = fold_data(storage->m_data);
+            storage->m_gpu_device = get_next_gpu(folded_data.size() * sizeof(int));
+            cudaSetDevice(storage->m_gpu_device);
+            // Have to create vector where correct cuda device is set
+            storage->m_priv->d_data =  make_shared<device_vector<int> >();
+            *(storage->m_priv->d_data) = folded_data;
+        }
     }
+}
+
+void FingerprintDB::getStorageAndLocalIndex(unsigned int offset_index,
+            FingerprintDBStorage** storage, unsigned int* local_index) const
+{
+    int slice_index_offset=0;
+    *storage = m_storage[0].get();
+    for(unsigned int i=1; i<m_storage.size(); i++) {
+        if(m_storage[i]->m_index_offset >= offset_index) break;
+        *storage = m_storage[i].get();
+        slice_index_offset = (*storage)->m_index_offset;
+    }
+    *local_index = offset_index - slice_index_offset;
 }
 
 
@@ -112,89 +203,97 @@ Fingerprint FingerprintDB::getFingerprint(unsigned int index) const
 {
     Fingerprint output(m_fp_intsize);
 
-    unsigned int offset = index*m_fp_intsize;
+    FingerprintDBStorage* storage;
+    unsigned int local_index;
+    getStorageAndLocalIndex(index, &storage, &local_index);
+
+    unsigned int offset = local_index*m_fp_intsize;
     for(int i=0; i<m_fp_intsize; i++) {
-        output[i] = m_data[offset+i];
+        output[i] = storage->m_data[offset+i];
     }
 
     return output;
 }
 
 
-void FingerprintDB::search(const Fingerprint& query,
-        std::vector<char*>& results_smiles,
-        std::vector<char*>& results_ids,
-        std::vector<float>& results_scores,
+void FingerprintDB::search_storage(const Fingerprint& query,
+        const std::shared_ptr<FingerprintDBStorage>& storage,
+        vector<SortableResult>* sortable_results,
         unsigned int return_count,
         float similarity_cutoff) const
 {
-    device_vector<int> d_results_indices(count());
-    device_vector<float> d_results_scores(count());
+    cudaSetDevice(storage->m_gpu_device);
+    static QMutex mutex;
     vector<int> indices;
-    int results_to_consider = 0;
-
+    std::vector<char*> results_smiles;
+    std::vector<char*> results_ids;
+    std::vector<float> results_scores;
+    device_vector<float> d_results_scores(storage->m_count);
+    device_vector<int> d_results_indices(storage->m_count);
     try
     {
-    // Fill indices [0->N), which will be sorted along with scores at end
-    thrust::sequence(d_results_indices.begin(), d_results_indices.end());
+        // Fill indices [0->N), which will be sorted along with scores at end
+        thrust::sequence(d_results_indices.begin(), d_results_indices.end());
+        DFingerprint d_ref_fp;
+        if(m_fold_factor == 1) {
+            // Copy the query fingerprint up to the GPU
+            d_ref_fp = query;
+        } else {
+            auto folded = fold_data(query);
+            d_ref_fp = folded;
+        }
 
-    DFingerprint d_ref_fp;
-    if(m_fold_factor == 1) {
-        // Copy the query fingerprint up to the GPU
-        d_ref_fp = query;
-    } else {
-        auto folded = fold_data(query);
-        d_ref_fp = folded;
-    }
+        const int folded_fp_intsize = m_fp_intsize / m_fold_factor;
+        // Use Tanimoto to score similarity of all compounds to query fingerprint
+        thrust::transform(d_results_indices.begin(), d_results_indices.end(),
+                d_results_scores.begin(),
+                TanimotoFunctor(d_ref_fp, folded_fp_intsize, *(storage->m_priv->d_data),
+                    similarity_cutoff));
+        auto indices_end = d_results_indices.end();
+        auto scores_end = d_results_scores.end();
+        if(similarity_cutoff > 0) {
+            indices_end = thrust::remove_if(d_results_indices.begin(),
+                    d_results_indices.end(), d_results_scores.begin(),
+                    thrust::logical_not<bool>());
+            scores_end = thrust::remove(d_results_scores.begin(),
+                    d_results_scores.end(), 0);
+        }
+        unsigned int indices_size = std::distance(d_results_indices.begin(),
+                indices_end);
 
-    int folded_fp_intsize = m_fp_intsize / m_fold_factor;
-    // Use Tanimoto to score similarity of all compounds to query fingerprint
-    thrust::transform(d_results_indices.begin(), d_results_indices.end(),
-            d_results_scores.begin(),
-            TanimotoFunctor(d_ref_fp, folded_fp_intsize, m_priv->d_data,
-                similarity_cutoff));
+        // Sort scores & indices vectors descending on score
+        thrust::sort_by_key(d_results_scores.begin(), scores_end,
+                d_results_indices.begin(), thrust::greater<float>());
 
-    auto indices_end = d_results_indices.end();
-    auto scores_end = d_results_scores.end();
-    if(similarity_cutoff > 0) {
-        indices_end = thrust::remove_if(d_results_indices.begin(),
-                d_results_indices.end(), d_results_scores.begin(),
-                thrust::logical_not<bool>());
-        scores_end = thrust::remove(d_results_scores.begin(),
-                d_results_scores.end(), 0);
-    }
-    unsigned int indices_size = std::distance(d_results_indices.begin(),
-            indices_end);
+        int results_to_consider = 0;
+        results_to_consider = std::min(indices_size,
+                return_count*m_fold_factor*(int)std::log2(2*m_fold_factor));
 
-    // Sort scores & indices vectors descending on score
-    thrust::sort_by_key(d_results_scores.begin(), scores_end,
-            d_results_indices.begin(), thrust::greater<float>());
-
-    results_to_consider = std::min(indices_size, return_count*m_fold_factor);
-
-    indices.assign(d_results_indices.begin(), 
-            d_results_indices.begin()+results_to_consider);
+        indices.assign(d_results_indices.begin(), 
+                d_results_indices.begin()+results_to_consider);
 
     } catch(thrust::system_error e) {
-        cerr << "Error!  " << e.what() << endl;
+        qDebug() << "Error!" << e.what();
+        throw;
     }
-
 
     if(m_fold_factor == 1) { // If we don't fold, we can take exact GPU results
         // Push top return_count results to CPU results vectors to be returned
-        for(unsigned int i=0;i<results_to_consider;i++) {
-            results_smiles.push_back(m_smiles[d_results_indices[i]]);
-            results_ids.push_back(m_ids[d_results_indices[i]]);
+        for(auto index : indices) {
+            int offset_index = storage->getOffsetIndex(index);
+            results_smiles.push_back(m_smiles[offset_index]);
+            results_ids.push_back(m_ids[offset_index]);
         }
         results_scores.assign(d_results_scores.begin(),
-                d_results_scores.begin()+results_to_consider);
+                d_results_scores.begin()+indices.size());
     } else { // If we folded, we need to recalculate scores with full fingerprints
-        results_scores.resize(results_to_consider);
-        for(unsigned int i=0;i<results_to_consider;i++) {
+        results_scores.resize(indices.size());
+        for(unsigned int i=0;i<indices.size();i++) {
+            int offset_index = storage->getOffsetIndex(indices[i]);
             results_scores[i] = tanimoto_similarity_cpu(query,
-                    getFingerprint(indices[i]));
+                    getFingerprint(offset_index));
             // Uncomment below to debug pre vs post folding scores
-            // cerr << results_scores[i] << " vs " << d_results_scores[i] << endl;
+            // qDebug() << results_scores[i] << " vs " << d_results_scores[i];
         }
         top_results_bubble_sort(indices, results_scores, return_count);
 
@@ -206,10 +305,51 @@ void FingerprintDB::search(const Fingerprint& query,
                 results_scores.resize(i);
                 break;
             }
-            results_ids.push_back(m_ids[indices[i]]);
-            results_smiles.push_back(m_smiles[indices[i]]);
+            results_ids.push_back(m_ids[storage->getOffsetIndex(indices[i])]);
+            results_smiles.push_back(m_smiles[storage->getOffsetIndex(indices[i])]);
         }
     }
+
+    mutex.lock();
+    for(unsigned int i=0; i<results_smiles.size(); i++) {
+        sortable_results->push_back(SortableResult(results_scores[i], 
+                    ResultData(results_smiles[i], results_ids[i])));
+    }
+    mutex.unlock();
+}
+
+
+void FingerprintDB::search(const Fingerprint& query,
+        std::vector<char*>& results_smiles,
+        std::vector<char*>& results_ids,
+        std::vector<float>& results_scores,
+        unsigned int return_count,
+        float similarity_cutoff) const
+{
+    vector<SortableResult> sortable_results;
+
+    vector<QFuture<void> > futures;
+    for(auto& storage : m_storage) {
+        QFuture<void> future = QtConcurrent::run(this,
+                &FingerprintDB::search_storage, query, storage,
+                &sortable_results, return_count, similarity_cutoff);
+        futures.push_back(future);
+    }
+    for(auto& future : futures) {
+        future.waitForFinished();
+    }
+    std::sort(sortable_results.begin(), sortable_results.end());
+    std::reverse(sortable_results.begin(), sortable_results.end());
+
+    for(auto result : sortable_results) {
+        results_scores.push_back(result.first);
+        results_smiles.push_back(result.second.first);
+        results_ids.push_back(result.second.second);
+    }
+    int result_size = std::min((int)return_count, (int)results_scores.size());
+    results_scores.resize(result_size);
+    results_smiles.resize(result_size);
+    results_ids.resize(result_size);
 }
 
 /**
@@ -230,10 +370,15 @@ float FingerprintDB::tanimoto_similarity_cpu(const Fingerprint& fp1,
     return (float)common / (float)(total-common);
 }
 
+
 size_t get_available_gpu_memory()
 {
-    size_t free=0, total=0;
-    cudaMemGetInfo(&free, &total);
+    size_t free=0;
+    for(unsigned int gpu=0; gpu<get_gpu_count(); gpu++) {
+        auto lfree = get_gpu_free_memory(gpu);
+        free += lfree;
+    }
+
     // Comment out below line to force-test folding:
     // free = 100*1024*1024;
 
