@@ -2,21 +2,19 @@
 
 A brute-force GPU implementation of chemical fingerprint similarity searching.  Its intended use is to be kept alive as a service with an entire library loaded into graphics card memory.  It has python scripts included which use RDKit to generate fingerprints, but the C++/Cuda backend are agnostic to the data once it's been created.
 
-## Initial Benchmark
+Architecture and benchmarks were presented in [a presentation at the 2018 RDKit European UGM](gpusimilarity_rdkit_presentation.pdf).
 
-Basic benchmarks for searching a 17M [Zinc-based](http://zinc.docking.org/) library:
+## Basic Benchmark
 
-Full similarity comparison against all 17M compounds with 1024bit fingerprints, including sort of results:
+On a machine with four Tesla V100, searching one billion compounds takes ~0.4 seconds.
 
-Tesla V100:  0.025 seconds (~680M a second)
-
-GeForce 1080Ti:  0.05 seconds (~350M a second)
+See [RDKit Presentation](gpusimilarity_rdkit_presentation.pdf) for much more in depth benchmarks.
 
 ## Example integration
 
 Here is a video of this backend being utilized for immediate-response searching inside Schrödinger's LiveDesign application:
 
-[![GPUSimilarity Gadget](http://img.youtube.com/vi/DZhknAXXEo4/0.jpg)](http://www.youtube.com/watch?v=DZhknAXXEo4)
+[![GPUSimilarity Gadget](http://img.youtube.com/vi/DZhknAXXEo4/0.jpg)](https://www.youtube.com/watch?v=T11UXEoF_rk)
 
 ## Dependencies
 * RDKit (At Python level, not compilation)
