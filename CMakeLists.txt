@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10.2 FATAL_ERROR)
-project(GPUSimProject VERSION 1.0.0.0 DESCRIPTION "fingerpring similarity searching" LANGUAGES CXX CUDA)
+project(GPUSimProject VERSION 1.0.0.0 DESCRIPTION "fingerprint similarity searching" LANGUAGES CXX CUDA)
 include(CTest)
 include(GNUInstallDirs)
 
