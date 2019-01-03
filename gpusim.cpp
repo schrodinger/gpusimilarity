@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <exception>
 #include <math.h>
+#include <sstream>
 
 #include "fingerprintdb_cuda.h"
 #include "local_qinfo.h"
@@ -315,16 +316,27 @@ void GPUSimServer::incomingSearchRequest()
     QDataStream smiles_stream(&output_smiles, QIODevice::WriteOnly);
     QDataStream ids_stream(&output_ids, QIODevice::WriteOnly);
     QDataStream scores_stream(&output_scores, QIODevice::WriteOnly);
+    int dedup_count = 0;
     for (unsigned int i = 0; i < results_smiles.size(); i++) {
+        std::stringstream ss;
+        ss << results_ids[i];
         smiles_stream << results_smiles[i];
-        ids_stream << results_ids[i];
+        while(i+1 < results_smiles.size()) {
+            if(strcmp(results_smiles[i], results_smiles[i+1])!=0) break;
+            ss << ";:;";
+            ss << results_ids[i+1];
+            i++;
+        }
+        ids_stream << ss.str().c_str();
         scores_stream << results_scores[i];
+        dedup_count++;
     }
 
     // Transmit binary data to client and flush the buffered data
     QByteArray rcount;
     QDataStream rcount_qds(&rcount, QIODevice::WriteOnly);
-    rcount_qds << (int)results_smiles.size();
+    rcount_qds << dedup_count;
+
     clientConnection->write(rcount);
     clientConnection->write(output_smiles);
     clientConnection->write(output_ids);

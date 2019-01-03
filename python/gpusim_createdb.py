@@ -21,6 +21,8 @@ def parse_args():
     parser.add_argument('inputfile')
     parser.add_argument('outputfile')
     parser.add_argument('--trustSmiles', action='store_true', default=False)
+    parser.add_argument('--singleThreaded', action='store_true', default=False,
+                        help="Ignore ipyparallel")
     return parser.parse_args()
 
 
@@ -95,7 +97,10 @@ class FPData:
 
 
 def main():
+    global dview
     args = parse_args()
+    if args.singleThreaded:
+        dview = None
     qf = QtCore.QFile(args.outputfile)
     qf.open(QtCore.QIODevice.WriteOnly)
 
