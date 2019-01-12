@@ -28,10 +28,8 @@ def parse_args():
 
 try:
     import ipyparallel as ipp
-    rc = ipp.Client()
-    dview = rc[:]
 except ImportError:
-    dview = None
+    ipp = None
 
 
 class FPData:
@@ -97,10 +95,12 @@ class FPData:
 
 
 def main():
-    global dview
     args = parse_args()
-    if args.singleThreaded:
+    if args.singleThreaded or ipp is None:
         dview = None
+    else:
+        rc = ipp.Client()
+        dview = rc[:]
     qf = QtCore.QFile(args.outputfile)
     qf.open(QtCore.QIODevice.WriteOnly)
 

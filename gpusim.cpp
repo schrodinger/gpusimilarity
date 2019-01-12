@@ -323,9 +323,7 @@ void GPUSimServer::incomingSearchRequest()
         smiles_stream << results_smiles[i];
         while(i+1 < results_smiles.size()) {
             if(strcmp(results_smiles[i], results_smiles[i+1])!=0) break;
-            ss << ";:;";
-            ss << results_ids[i+1];
-            i++;
+            ss << ";:;" << results_ids[++i];
         }
         ids_stream << ss.str().c_str();
         scores_stream << results_scores[i];
