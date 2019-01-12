@@ -1,12 +1,3 @@
-/*
- * NOTE:  I mainly left this in here because this is working with waf, and
- * I didn't want to have to figure out how to do this again if problems arose.
- * I suspect some tests might be necessary in the near or remote future.
- *
- * For now functionality will be covered under STU tests, since there's GPU
- * access there.
- */
-
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE gpusimilarity
 

@@ -25,10 +25,11 @@ def add_fingerprint_bin_to_smi_line(line, trust_smiles=False):
         smiles, cid = splitl[:2]
     except ValueError:
         raise ValueError(splitl)
-    fp_binary = smiles_to_fingerprint_bin(smiles, trust_smiles=trust_smiles)
+    fp_binary, canon_smiles = smiles_to_fingerprint_bin(smiles,
+                                            trust_smiles=trust_smiles) #noqa
     if fp_binary is None:
         return None
-    return (smiles, cid, fp_binary)
+    return (canon_smiles, cid, fp_binary)
 
 
 def split_lines_add_fp(lines, dview=None, trust_smiles=False):
@@ -41,13 +42,15 @@ def split_lines_add_fp(lines, dview=None, trust_smiles=False):
 def smiles_to_fingerprint_bin(smiles, trust_smiles=False):
     mol = Chem.MolFromSmiles(smiles, sanitize=(not trust_smiles))
     if mol is None:
-        return None
+        return None, None
     if trust_smiles:
         mol.UpdatePropertyCache()
         Chem.FastFindRings(mol)
     fp = rdMolDescriptors.GetMorganFingerprintAsBitVect(mol, 2, BITCOUNT)
 
-    return DataStructs.BitVectToBinaryText(fp)
+    canon_smiles = Chem.MolToSmiles(mol)
+    canon_smiles = str.encode(canon_smiles)
+    return DataStructs.BitVectToBinaryText(fp), canon_smiles
 
 
 def smiles_to_image_file(smiles, path):
