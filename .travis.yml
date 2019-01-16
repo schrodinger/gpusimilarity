@@ -15,6 +15,7 @@ before_script:
 script:
   - mkdir build
   - cd build
+  - export CUDACXX=/usr/local/cuda-9.0/bin/nvcc
   - cmake ..
   - make
   - make test CTEST_OUTPUT_ON_FAILURE=1
