@@ -26,3 +26,4 @@ addons:
       - cmake
       - cmake-data
       - libboost-all-dev
+      - qt5-dev-tools
