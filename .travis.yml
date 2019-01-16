@@ -1,0 +1,22 @@
+dist: xenial
+
+language: cpp
+
+before_script:
+  - git clone https://github.com/torcolvin/gpusimilarity.git
+  - mkdir gpusimilarity/build
+
+
+script:
+  - mkdir build
+  - cd build
+  - cmake ..
+  - make
+  - make test CTEST_OUTPUT_ON_FAILURE=1
+
+addons:
+  apt:
+    packages:
+      - cmake
+      - cmake-data
+      - libboost-all-dev
