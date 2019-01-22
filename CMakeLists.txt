@@ -39,6 +39,7 @@ find_package(Qt5Concurrent REQUIRED)
 # INTERFACE_POSITION_INDEPENDENT_CODE
 get_property(core_options TARGET Qt5::Core PROPERTY INTERFACE_COMPILE_OPTIONS)
 string(REPLACE "-fPIC" "" new_core_options ${core_options})
+enable_language(CUDA)
 set_property(TARGET Qt5::Core PROPERTY INTERFACE_COMPILE_OPTIONS ${new_core_options})
 set_property(TARGET Qt5::Core PROPERTY INTERFACE_POSITION_INDEPENDENT_CODE "ON")
 
@@ -58,6 +59,7 @@ if (DOXYGEN_FOUND) # make doc_doxygen
 endif()
 
 add_library(gpusim gpusim.cpp fingerprintdb_cuda.cpp fingerprintdb_cuda.cu calculation_functors.cpp)
+set_property(TARGET gpusim PROPERTY CUDA_STANDARD 11)
 target_include_directories(gpusim PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<INSTALL_INTERFACE:include>)
