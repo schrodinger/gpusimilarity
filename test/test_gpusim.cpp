@@ -56,6 +56,7 @@ BOOST_AUTO_TEST_CASE(CompareGPUtoCPU)
 
 BOOST_AUTO_TEST_CASE(TestSearchAll)
 {
+    if(gpusim::get_gpu_count() == 0) return;
     QStringList db_fnames;
     db_fnames << "small.fsim";
     db_fnames << "small_copy.fsim";
@@ -79,6 +80,7 @@ BOOST_AUTO_TEST_CASE(TestSearchAll)
 
 BOOST_AUTO_TEST_CASE(TestSimilarityCutoff)
 {
+    if(gpusim::get_gpu_count() == 0) return;
     QStringList db_fnames;
     db_fnames << "small.fsim";
     GPUSimServer server(db_fnames);
@@ -142,6 +144,7 @@ BOOST_AUTO_TEST_CASE(FoldFingerprint)
 
 BOOST_AUTO_TEST_CASE(getNextGPU)
 {
+    if(gpusim::get_gpu_count() == 0) return;
     unsigned int gpucount = gpusim::get_gpu_count();
     if(gpucount == 0) return;
     // Make sure first go around gets every valid GPU
