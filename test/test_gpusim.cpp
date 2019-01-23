@@ -18,7 +18,7 @@ using gpusim::GPUSimServer;
 
 bool missing_cuda_skip()
 {
-    static auto cuda_skip = std::getenv("CUDA_SKIP");
+    static auto cuda_skip = std::getenv("SKIP_CUDA");
     if(cuda_skip != nullptr) return true;
     if(gpusim::get_gpu_count() == 0) return true;
 
