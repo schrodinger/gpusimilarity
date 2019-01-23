@@ -46,6 +46,8 @@ unsigned int get_gpu_count()
 
     if(!initialized) {
         qDebug() << 2;
+        int driverVersion;
+        cudaRuntimeGetVersion(&driverVersion);
         cudaGetDeviceCount(&device_count);
         qDebug() << 3;
         initialized = true;
