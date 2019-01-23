@@ -6,7 +6,6 @@
  *
  * Copyright Schrodinger LLC, All Rights Reserved.
  --------------------------------------------------------------------------- */
-// Fixing build
 #include "gpusim.h"
 
 #include <QByteArray>

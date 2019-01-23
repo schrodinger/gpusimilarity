@@ -44,8 +44,6 @@ unsigned int get_gpu_count()
     static bool initialized = false;
 
     if(!initialized) {
-        int driverVersion;
-        cudaRuntimeGetVersion(&driverVersion);
         cudaGetDeviceCount(&device_count);
         initialized = true;
     }
