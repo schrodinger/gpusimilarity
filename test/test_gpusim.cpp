@@ -16,9 +16,18 @@ using std::vector;
 
 using gpusim::GPUSimServer;
 
+bool missing_cuda_skip()
+{
+    static auto cuda_skip = std::getenv("CUDA_SKIP");
+    if(cuda_skip != nullptr) return true;
+    if(gpusim::get_gpu_count() == 0) return true;
+
+    return false;
+}
+
 BOOST_AUTO_TEST_CASE(CompareGPUtoCPU)
 {
-    if(gpusim::get_gpu_count() == 0) return;
+    if(missing_cuda_skip()) return;
 
     // TODO:  Replace Schrodinger function that is commented out here
     // Only run this if there's a GPU available
@@ -56,7 +65,7 @@ BOOST_AUTO_TEST_CASE(CompareGPUtoCPU)
 
 BOOST_AUTO_TEST_CASE(TestSearchAll)
 {
-    if(gpusim::get_gpu_count() == 0) return;
+    if(missing_cuda_skip()) return;
     QStringList db_fnames;
     db_fnames << "small.fsim";
     db_fnames << "small_copy.fsim";
@@ -80,7 +89,7 @@ BOOST_AUTO_TEST_CASE(TestSearchAll)
 
 BOOST_AUTO_TEST_CASE(TestSimilarityCutoff)
 {
-    if(gpusim::get_gpu_count() == 0) return;
+    if(missing_cuda_skip()) return;
     QStringList db_fnames;
     db_fnames << "small.fsim";
     GPUSimServer server(db_fnames);
@@ -144,9 +153,8 @@ BOOST_AUTO_TEST_CASE(FoldFingerprint)
 
 BOOST_AUTO_TEST_CASE(getNextGPU)
 {
-    if(gpusim::get_gpu_count() == 0) return;
+    if(missing_cuda_skip()) return;
     unsigned int gpucount = gpusim::get_gpu_count();
-    if(gpucount == 0) return;
     // Make sure first go around gets every valid GPU
     for(unsigned int i=0; i<gpucount; i++) {
         BOOST_CHECK_EQUAL(i, gpusim::get_next_gpu(1));
