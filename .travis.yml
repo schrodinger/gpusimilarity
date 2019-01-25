@@ -18,7 +18,7 @@ script:
   - export PATH=/usr/local/cuda-9.0/bin${PATH:+:${PATH}}
   - cmake ..
   - make
-  - make test CTEST_OUTPUT_ON_FAILURE=1
+  - cmake -E env SKIP_CUDA=1 ctest
 
 addons:
   apt:
