@@ -6,6 +6,7 @@ which takes fingerprints as a JSON and returns results in JSON form.
 import os
 import random
 import subprocess
+import sys
 import time
 import tempfile
 
@@ -81,24 +82,26 @@ class GPUSimHandler(BaseHTTPRequestHandler):
     def get_data_from_dbname(self, dbname):
         global search_mutex
         search_mutex.lock()
-        if dbname not in sockets:
-            self.send_error(404, f'DB {dbname} not found in options: {sockets.keys()}') #noqa
-            raise ValueError('DB not found')
-        allsmiles, allids, allscores = [], [], []
-        src_smiles, return_count, similarity_cutoff = self.get_posted_data()
-        request_num = random.randint(0, 2**31)
-        print("Processing request {}".format(request_num))
-        output_qba = self.get_data(dbname, src_smiles, return_count,
-                                    similarity_cutoff, request_num)
         try:
-            return_count, smiles, ids, scores = self.deserialize_results(
-                request_num, output_qba)
-        except RuntimeError:
-            self.flush_socket(dbname)
-            raise
+            if dbname not in sockets:
+                self.send_error(404, f'DB {dbname} not found in options: {sockets.keys()}') #noqa
+                raise ValueError('DB not found')
+            allsmiles, allids, allscores = [], [], []
+            src_smiles, return_count, similarity_cutoff = self.get_posted_data()
+            request_num = random.randint(0, 2**31)
+            print("Processing request {}".format(request_num), file=sys.stderr)
+            output_qba = self.get_data(dbname, src_smiles, return_count,
+                                        similarity_cutoff, request_num)
+            try:
+                return_count, smiles, ids, scores = self.deserialize_results(
+                    request_num, output_qba)
+            except RuntimeError:
+                self.flush_socket(dbname)
+                raise
 
-        search_mutex.unlock()
-        return smiles, ids, scores, src_smiles
+            return smiles, ids, scores, src_smiles
+        finally:
+            search_mutex.unlock()
 
     def flush_socket(self, dbname):
         socket = sockets[socket_name]
@@ -284,7 +287,7 @@ def main():
     else:
         handler = GPUSimHandler
     server = ThreadedHTTPServer((args.hostname, args.port), handler)
-    print("Running HTTP server...")
+    print("Running HTTP server...", file=sys.stderr)
     try:
         server.serve_forever()
     finally:
