@@ -17,7 +17,9 @@ def main():
         similarity_cutoff = 0
 
         fp_binary = smiles_to_fingerprint_bin(smiles)
-        fp_qba = QtCore.QByteArray(fp_binary)
+        #fp_qba = QtCore.QByteArray(fp_binary)
+        fp_qba = QtCore.QByteArray()
+        fp_qba.append(fp_binary[0])
 
         output_qba = QtCore.QByteArray()
         output_qds = QtCore.QDataStream(output_qba, QtCore.QIODevice.WriteOnly)
@@ -36,6 +38,7 @@ def main():
         ids = []
 
         data_reader = QtCore.QDataStream(output_qba)
+        return_count = data_reader.readInt()
 
         for i in range(return_count):
             smiles.append(data_reader.readString())
