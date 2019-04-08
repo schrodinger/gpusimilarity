@@ -100,13 +100,14 @@ class GPUSimHandler(BaseHTTPRequestHandler):
             src_smiles, return_count, similarity_cutoff, dbnames, dbkeys = \
                 self.get_posted_data()
             request_num = random.randint(0, 2**31)
-            print("Processing request {}".format(request_num), file=sys.stderr)
+            print("Processing request {0}".format(request_num),
+                  file=sys.stderr)
             output_qba = self.get_data(dbnames, dbkeys, src_smiles,
                                        return_count, similarity_cutoff,
                                        request_num)
             try:
                 return_count, smiles, ids, scores = self.deserialize_results(
-                    output_qba)
+                    request_num, output_qba)
             except RuntimeError:
                 self.flush_socket(dbname)
                 raise
