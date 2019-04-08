@@ -7,6 +7,8 @@
 
 #include "fingerprintdb_cuda.h"
 
+#include <QDebug>
+#include <QString>
 #include <QThreadPool>
 #include <QtConcurrent/QtConcurrentMap>
 
@@ -15,18 +17,24 @@
 using namespace gpusim;
 using std::vector;
 
-void FingerprintDB::search_cpu (const Fingerprint& query,
+void FingerprintDB::search_cpu (const Fingerprint& query, const QString& dbkey,
         std::vector<char*>& results_smiles,
         std::vector<char*>& results_ids,
         std::vector<float>& results_scores,
         unsigned int return_count,
         float similarity_cutoff) const
 {
+    if(dbkey != m_dbkey) {
+        qDebug() << "Key check failed, returning empty results";
+        return;
+    }
     const int total = count();
     vector<int> indices(total);
     std::iota(indices.begin(), indices.end(), 0);
 
     vector<float> scores(total);
+
+    //TODO:  CPU searching broken for >1GB, needs to be fixed below
 
     // Scoring parallelizes well, but bottleneck is now sorting
     QtConcurrent::blockingMap(indices,

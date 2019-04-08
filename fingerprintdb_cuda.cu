@@ -124,10 +124,10 @@ unsigned int FingerprintDBStorage::getOffsetIndex(unsigned int without_offset)
     return without_offset + m_index_offset;
 }
 
-FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count,
+FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count, const QString& dbkey,
             vector<vector<char> >& data,
             vector<char*>& smiles_vector,
-            std::vector<char*>& ids_vector)
+            std::vector<char*>& ids_vector) : m_dbkey(dbkey)
 {
 
     m_fp_intsize = fp_bitcount / (sizeof(int)*8);  //ASSUMES INT-DIVISIBLE SIZE
@@ -320,12 +320,17 @@ void FingerprintDB::search_storage(const Fingerprint& query,
 
 
 void FingerprintDB::search(const Fingerprint& query,
+        const QString& dbkey,
         std::vector<char*>& results_smiles,
         std::vector<char*>& results_ids,
         std::vector<float>& results_scores,
         unsigned int return_count,
         float similarity_cutoff) const
 {
+    if(dbkey != m_dbkey) {
+        qDebug() << "Key check failed, returning empty results";
+        return;
+    }
     vector<SortableResult> sortable_results;
 
     vector<QFuture<void> > futures;

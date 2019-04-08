@@ -11,7 +11,8 @@
 #include <vector>
 #include <utility>
 
-#include <QObject> 
+#include <QObject>
+#include <QString>
 
 #include "types.h"
 
@@ -53,7 +54,7 @@ class FingerprintDB : public QObject
   friend class FingerprintDBStorage;
 
   public:
-    FingerprintDB(int fp_bitcount, int fp_count,
+    FingerprintDB(int fp_bitcount, int fp_count, const QString& dbkey,
             std::vector<std::vector<char> >& data,
             std::vector<char*>& smiles_vector,
             std::vector<char*>& ids_vector);
@@ -100,13 +101,14 @@ class FingerprintDB : public QObject
      * @param return_count: Maximum number of results to return
      * @param similarity_cutoff: Minimum similarity score to return
      */
-    void search(const Fingerprint& query, std::vector<char*>& results_smiles,
+    void search(const Fingerprint& query, const QString& dbkey,
+                std::vector<char*>& results_smiles,
                 std::vector<char*>& results_ids,
                 std::vector<float>& results_scores,
                 unsigned int return_count,
                 float similarity_cutoff) const;
 
-    void search_cpu(const Fingerprint& query,
+    void search_cpu(const Fingerprint& query, const QString& dbkey,
             std::vector<char*>& results_smiles,
             std::vector<char*>& results_ids,
             std::vector<float>& results_scores,
@@ -137,6 +139,7 @@ class FingerprintDB : public QObject
     size_t m_total_data_size;
     std::vector<char*> m_smiles;
     std::vector<char*> m_ids;
+    QString m_dbkey;
 
 };
 

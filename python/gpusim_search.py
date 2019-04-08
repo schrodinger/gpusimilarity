@@ -9,18 +9,24 @@ def main():
 
     socket = QtNetwork.QLocalSocket(app)
     smiles = input("Smiles: ")
-    db_name = sys.argv[1]
-    socket.connectToServer(db_name)
+    dbcount = 1
+    dbname = sys.argv[1]
+    dbkey = sys.argv[2]
+    socket.connectToServer('gpusimilarity')
 
     while smiles and smiles.lower() not in ('quit', 'exit'):
         return_count = 20
         similarity_cutoff = 0
 
-        fp_binary = smiles_to_fingerprint_bin(smiles)
+        fp_binary, _ = smiles_to_fingerprint_bin(smiles)
         fp_qba = QtCore.QByteArray(fp_binary)
 
         output_qba = QtCore.QByteArray()
         output_qds = QtCore.QDataStream(output_qba, QtCore.QIODevice.WriteOnly)
+
+        output_qds.writeInt(dbcount)
+        output_qds.writeString(dbname.encode())
+        output_qds.writeString(dbkey.encode())
 
         output_qds.writeInt(return_count)
         output_qds.writeFloat(similarity_cutoff)
@@ -36,11 +42,12 @@ def main():
         ids = []
 
         data_reader = QtCore.QDataStream(output_qba)
+        return_count = data_reader.readInt()
 
         for i in range(return_count):
             smiles.append(data_reader.readString())
         for i in range(return_count):
-            ids.append(data_reader.readString().decode("utf-8"))
+            ids.append(data_reader.readString())
         for i in range(return_count):
             scores.append(data_reader.readFloat())
 
