@@ -104,7 +104,7 @@ class GPUSimHandler(BaseHTTPRequestHandler):
             search_mutex.unlock()
 
     def flush_socket(self, dbname):
-        socket = sockets[socket_name]
+        socket = sockets[dbname]
         while not socket.atEnd():
             socket.readAll()
 
