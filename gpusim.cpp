@@ -306,6 +306,10 @@ void GPUSimServer::incomingSearchRequest()
     }
 
     int results_requested;
+    // Used to guarantee Python reading the pipe reads correct request
+    int request_num;
+    qds >> request_num;
+
     qds >> results_requested;
 
     float similarity_cutoff;
@@ -352,11 +356,12 @@ void GPUSimServer::incomingSearchRequest()
     }
 
     // Transmit binary data to client and flush the buffered data
-    QByteArray rcount;
-    QDataStream rcount_qds(&rcount, QIODevice::WriteOnly);
-    rcount_qds << dedup_count;
+    QByteArray ints_qba;
+    QDataStream ints_qds(&ints_qba, QIODevice::WriteOnly);
+    ints_qds << request_num;
+    ints_qds << dedup_count;
 
-    clientConnection->write(rcount);
+    clientConnection->write(ints_qba);
     clientConnection->write(output_smiles);
     clientConnection->write(output_ids);
     clientConnection->write(output_scores);

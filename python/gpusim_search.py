@@ -1,6 +1,7 @@
 import sys
 from PyQt5 import QtCore, QtNetwork
 
+import random
 from gpusim_utils import smiles_to_fingerprint_bin
 
 
@@ -28,6 +29,8 @@ def main():
         output_qds.writeString(dbname.encode())
         output_qds.writeString(dbkey.encode())
 
+        request_num = random.randint(0, 2**31)
+        output_qds.writeInt(request_num)
         output_qds.writeInt(return_count)
         output_qds.writeFloat(similarity_cutoff)
         output_qds << fp_qba
@@ -42,6 +45,10 @@ def main():
         ids = []
 
         data_reader = QtCore.QDataStream(output_qba)
+        returned_request = data_reader.readInt()
+        if request_num != returned_request:
+            raise RuntimeError("Incorrect result ID returned!")
+
         return_count = data_reader.readInt()
 
         for i in range(return_count):
