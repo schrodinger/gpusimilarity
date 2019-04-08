@@ -281,10 +281,17 @@ void GPUSimServer::incomingSearchRequest()
     // Read incoming Fingerprint binary and put it in Fingerprint object
     QByteArray data = clientConnection->readAll();
     QDataStream qds(&data, QIODevice::ReadOnly);
-    int results_requested;
+
+    // Used to guarantee Python reading the pipe reads correct request
+    int request_num;
+    qds >> request_num;
+
+    int results_requested; // Maximum results to return, may return less
     qds >> results_requested;
+
     float similarity_cutoff;
     qds >> similarity_cutoff;
+
     QByteArray fp_data;
     qds >> fp_data;
     const int* raw_fp_data = reinterpret_cast<const int*>(fp_data.constData());
@@ -331,11 +338,12 @@ void GPUSimServer::incomingSearchRequest()
     }
 
     // Transmit binary data to client and flush the buffered data
-    QByteArray rcount;
-    QDataStream rcount_qds(&rcount, QIODevice::WriteOnly);
-    rcount_qds << dedup_count;
+    QByteArray ints_qba;
+    QDataStream ints_qds(&ints_qba, QIODevice::WriteOnly);
+    ints_qds << request_num;
+    ints_qds << dedup_count;
 
-    clientConnection->write(rcount);
+    clientConnection->write(ints_qba);
     clientConnection->write(output_smiles);
     clientConnection->write(output_ids);
     clientConnection->write(output_scores);
