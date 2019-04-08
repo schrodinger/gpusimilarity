@@ -62,6 +62,7 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                  similarity_cutoff):
         global socket
         fp_binary, _ = gpusim_utils.smiles_to_fingerprint_bin(src_smiles)
+        fp_binary, canon_smile = gpusim_utils.smiles_to_fingerprint_bin(src_smiles)
         fp_qba = QtCore.QByteArray(fp_binary)
 
         output_qba = QtCore.QByteArray()
