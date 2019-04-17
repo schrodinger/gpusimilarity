@@ -247,7 +247,7 @@ void GPUSimServer::newConnection()
 
 void GPUSimServer::searchDatabases(const Fingerprint& query,
         int results_requested,
-        float similarity_cutoff, map<string, QString>& dbname_to_key,
+        float similarity_cutoff, map<QString, QString>& dbname_to_key,
         vector<char *>&  results_smiles,
         vector<char *>& results_ids, vector<float>& results_scores)
 {
@@ -261,7 +261,7 @@ void GPUSimServer::searchDatabases(const Fingerprint& query,
 
         vector<char *> l_results_smiles, l_results_ids;
         vector<float> l_results_scores;
-        similaritySearch(query, QString::fromStdString(local_dbname),
+        similaritySearch(query, local_dbname,
                 local_key, l_results_smiles, l_results_ids,
                 l_results_scores, results_requested, similarity_cutoff,
                 usingGPU() ? CalcType::GPU : CalcType::CPU);
@@ -294,13 +294,13 @@ void GPUSimServer::incomingSearchRequest()
 
     int database_search_count;
     qds >> database_search_count;
-    map<string, QString> dbname_to_key;
+    map<QString, QString> dbname_to_key;
     for(int i=0; i<database_search_count; i++) {
         char* dbname;
         char* dbkey;
         qds >> dbname;
         qds >> dbkey;
-        dbname_to_key[std::string(dbname)] = QString(dbkey);
+        dbname_to_key[QString(dbname)] = QString(dbkey);
         delete[] dbname;
         delete[] dbkey;
     }

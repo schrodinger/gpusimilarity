@@ -7,6 +7,7 @@
 #include <QHash>
 #include <QObject>
 #include <QString>
+#include "qstring_hash.h"
 #include "types.h"
 
 class QByteArray;
@@ -58,7 +59,7 @@ class GPUSimServer : public QObject
 
     void searchDatabases(const Fingerprint& reference, int results_requested,
             float similarity_cutoff,
-            std::map<std::string, QString>& dbname_to_key,
+            std::map<QString, QString>& dbname_to_key,
             std::vector<char *>&  results_smiles,
             std::vector<char *>& results_ids, std::vector<float>& results_scores);
 

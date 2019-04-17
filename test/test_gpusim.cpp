@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(TestSearchMultiple)
     std::vector<char*> smiles;
     std::vector<char*> ids;
     std::vector<float> scores;
-    std::map<std::string, QString> dbname_to_key;
+    std::map<QString, QString> dbname_to_key;
     dbname_to_key["small"] = "pass";
     dbname_to_key["small_copy"] = "pass";
 
