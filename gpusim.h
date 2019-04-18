@@ -1,9 +1,13 @@
 #pragma once
 
+#include <map>
 #include <memory>
+#include <string>
+
 #include <QHash>
 #include <QObject>
 #include <QString>
+#include "qstring_hash.h"
 #include "types.h"
 
 class QByteArray;
@@ -45,6 +49,7 @@ class GPUSimServer : public QObject
      */
     void similaritySearch(const Fingerprint& reference,
                           const QString& dbname,
+                          const QString& dbkey,
                           std::vector<char*>& results_smiles,
                           std::vector<char*>& results_ids,
                           std::vector<float>& results_scores,
@@ -52,8 +57,10 @@ class GPUSimServer : public QObject
                           float similarity_cutoff,
                           CalcType calc_type=CalcType::GPU);
 
-    void searchAll(const Fingerprint& reference, int results_requested,
-            float similarity_cutoff, std::vector<char *>&  results_smiles,
+    void searchDatabases(const Fingerprint& reference, int results_requested,
+            float similarity_cutoff,
+            std::map<QString, QString>& dbname_to_key,
+            std::vector<char *>&  results_smiles,
             std::vector<char *>& results_ids, std::vector<float>& results_scores);
 
     /**
@@ -79,9 +86,9 @@ class GPUSimServer : public QObject
     QHash<QString, std::shared_ptr<FingerprintDB>> m_databases;
     bool m_use_gpu = true;
 
-    bool setupSocket(const QString& socket_name);
+    bool setupSocket();
     void extractData(const QString& database_fname, int& fp_bitcount,
-            int& fp_count,
+            int& fp_count, QString& dbkey,
             std::vector<std::vector<char> >& fingerprint_data,
             std::vector<char*>& smiles_vector,
             std::vector<char*>& ids_vector);

@@ -10,7 +10,7 @@ import gzip
 
 import gpusim_utils
 
-DATABASE_VERSION = 2
+DATABASE_VERSION = 3
 GIGABYTE_SIZE = 2**30
 
 
@@ -20,6 +20,8 @@ def parse_args():
                                      'Binary FingerprintDB')
     parser.add_argument('inputfile')
     parser.add_argument('outputfile')
+    parser.add_argument('--dbkey', default="",
+                        help="Provide a dbkey, default is an empty string")
     parser.add_argument('--trustSmiles', action='store_true', default=False)
     parser.add_argument('--singleThreaded', action='store_true', default=False,
                         help="Ignore ipyparallel")
@@ -133,11 +135,14 @@ def main():
     qds.setVersion(QtCore.QDataStream.Qt_5_2)
 
     qds.writeInt(DATABASE_VERSION)
+    qds.writeString(args.dbkey.encode())
     qds.writeInt(gpusim_utils.BITCOUNT)
     qds.writeInt(count)
     fpdata.writeData(qds)
 
     qf.close()
+
+    print("Database generation finished with key: {0}".format(args.dbkey))
 
 
 if __name__ == "__main__":

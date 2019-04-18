@@ -1,6 +1,9 @@
 """
 This is a sample HTTP server interface with the GPUSim backend,
 which takes fingerprints as a JSON and returns results in JSON form.
+
+THIS RUNS ON PORT 80 AND IS NOT SECURE.  For production use you should wrap
+using nginx or equivalent and only use https externally.
 """
 
 import os
@@ -22,7 +25,8 @@ import gpusim_utils
 
 SCRIPT_DIR = os.path.split(__file__)[0]
 BITCOUNT = 1024
-sockets = {}
+
+socket = None
 
 # Make sure there's only ever a single search at a time
 search_mutex = QtCore.QMutex()
@@ -30,7 +34,7 @@ search_mutex = QtCore.QMutex()
 try:
     from gpusim_server_loc import GPUSIM_EXEC  # Used in schrodinger env
 except ImportError:
-    GPUSIM_EXEC  = './gpusimserver'
+    GPUSIM_EXEC = './gpusimserver'
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
@@ -52,23 +56,33 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                      'CONTENT_TYPE': self.headers['Content-Type'],
                      })
 
-        return (form["smiles"].value.strip(), int(form["return_count"].value),
-                float(form["similarity_cutoff"].value))
+        dbnames = form["dbnames"].value.split(',')
+        dbkeys = form["dbkeys"].value.split(',')
+        if len(dbnames) != len(dbkeys):
+            raise RuntimeError("Need key for each database.")
 
-    def get_data(self, socket_name, src_smiles, return_count,
+        return (form["smiles"].value.strip(), int(form["return_count"].value),
+                float(form["similarity_cutoff"].value), dbnames, dbkeys)
+
+    def get_data(self, dbnames, dbkeys, src_smiles, return_count,
                  similarity_cutoff, request_num):
-        fp_binary, canon_smiles = gpusim_utils.smiles_to_fingerprint_bin(src_smiles)
+        global socket
+        fp_binary, canon_smile = gpusim_utils.smiles_to_fingerprint_bin(src_smiles)
         fp_qba = QtCore.QByteArray(fp_binary)
 
         output_qba = QtCore.QByteArray()
         output_qds = QtCore.QDataStream(output_qba, QtCore.QIODevice.WriteOnly)
+
+        output_qds.writeInt(len(dbnames))
+        for name, key in zip(dbnames, dbkeys):
+            output_qds.writeString(name.encode())
+            output_qds.writeString(key.encode())
 
         output_qds.writeInt(request_num)
         output_qds.writeInt(return_count)
         output_qds.writeFloat(similarity_cutoff)
         output_qds << fp_qba
 
-        socket = sockets[socket_name]
         socket.write(output_qba)
         socket.flush()
         socket.waitForReadyRead(30000)
@@ -79,19 +93,18 @@ class GPUSimHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_error(404, 'Server unavailable.')
 
-    def get_data_from_dbname(self, dbname):
+    def search_for_results(self):
         global search_mutex
         search_mutex.lock()
         try:
-            if dbname not in sockets:
-                self.send_error(404, f'DB {dbname} not found in options: {sockets.keys()}') #noqa
-                raise ValueError('DB not found')
-            allsmiles, allids, allscores = [], [], []
-            src_smiles, return_count, similarity_cutoff = self.get_posted_data()
+            src_smiles, return_count, similarity_cutoff, dbnames, dbkeys = \
+                self.get_posted_data()
             request_num = random.randint(0, 2**31)
-            print("Processing request {}".format(request_num), file=sys.stderr)
-            output_qba = self.get_data(dbname, src_smiles, return_count,
-                                        similarity_cutoff, request_num)
+            print("Processing request {0}".format(request_num),
+                  file=sys.stderr)
+            output_qba = self.get_data(dbnames, dbkeys, src_smiles,
+                                       return_count, similarity_cutoff,
+                                       request_num)
             try:
                 return_count, smiles, ids, scores = self.deserialize_results(
                     request_num, output_qba)
@@ -111,10 +124,8 @@ class GPUSimHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.path.startswith("/similarity_search_json"):
             return
-        dbname = self.path.replace("/similarity_search_json_", "")
-
         try:
-            smiles, ids, scores, _ = self.get_data_from_dbname(dbname)
+            smiles, ids, scores, _ = self.search_for_results()
         except ValueError:
             return
         self.do_json_POST(smiles, ids, scores)
@@ -209,10 +220,8 @@ class GPUSimHTTPHandler(GPUSimHandler):
         if not self.path.startswith("/similarity_search"):
             return
 
-        dbname = self.path.replace("/similarity_search_", "")
-        dbname = dbname.replace("json_", "")  # Strip json if in endpoint
         try:
-            smiles, ids, scores, src_smiles = self.get_data_from_dbname(dbname)
+            smiles, ids, scores, src_smiles = self.search_for_results()
         except ValueError:
             return
         if self.path.startswith("/similarity_search_json"):
@@ -247,24 +256,22 @@ def parse_args():
                         help="Search the database on the CPU, not the GPU (slow)") #noqa
     parser.add_argument('--gpu_bitcount', default='0',
                         help="Provide the maximum bitcount for fingerprints on GPU") #noqa
-    parser.add_argument('--debug', action='store_true', help="Run the backend inside GDB")
+    parser.add_argument('--debug', action='store_true', help="Run the backend inside GDB") #noqa
     return parser.parse_args()
 
 
-def setup_socket(app, dbname_noext):
-    global sockets
+def setup_socket(app):
+    global socket
 
     socket = QtNetwork.QLocalSocket(app)
     while not socket.isValid():
-        socket_name = dbname_noext
+        socket_name = 'gpusimilarity'
         socket.connectToServer(socket_name)
         time.sleep(0.3)
-        sockets[dbname_noext] = socket
 
 
 def main():
 
-    global sockets
     args = parse_args()
 
     # Try to connect to the GPU backend
@@ -277,10 +284,7 @@ def main():
     cmdline += ['--gpu_bitcount', args.gpu_bitcount]
     cmdline += args.dbnames
     backend_proc = subprocess.Popen(cmdline)
-    for dbname in args.dbnames:
-        dbname_noext = os.path.splitext(os.path.basename(dbname))[0]
-        setup_socket(app, dbname_noext)
-    setup_socket(app, "all")
+    setup_socket(app)
 
     if args.http_interface:
         handler = GPUSimHTTPHandler

@@ -1,15 +1,23 @@
 <title>GPUSimilarity</title>
 Basic debugging interface for GPUSim<p>
-Enter Smiles (HTML output):  <form action="/similarity_search_all" method="post">
+Enter Smiles (HTML output):  <form action="/similarity_search" method="post">
     Smiles:  <input type="text", name="smiles">
     Similarity Cutoff: <input type="text", name="similarity_cutoff" value="0.5">
     <input type="hidden", name="return_count" value="20">
+    <input type="hidden", name="dbnames" value="small">
+
+    <!--BEST PRACTICE IS TO NOT PUT PASSWORDS IN FORMS, BUT IN MIDDLE LAYER!-->
+    <input type="hidden", name="dbkeys" value="pass">
     <input type="submit">
 </form>
 <p>
-Enter Smiles (JSON output):  <form action="/similarity_search_json_all" method="post">
+Enter Smiles (JSON output):  <form action="/similarity_search_json" method="post">
     Smiles:  <input type="text", name="smiles">
     Similarity Cutoff: <input type="text", name="similarity_cutoff" value="0.5">
     <input type="hidden", name="return_count" value="20">
+    <input type="hidden", name="dbnames" value="small">
+
+    <!--BEST PRACTICE IS TO NOT PUT PASSWORDS IN FORMS, BUT IN MIDDLE LAYER!-->
+    <input type="hidden", name="dbkeys" value="pass">
     <input type="submit">
 </form>
