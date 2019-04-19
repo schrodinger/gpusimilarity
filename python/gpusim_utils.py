@@ -11,6 +11,8 @@ To do this, it requires a virtualenv with ipyparallel installed
 YOU MUST START ipcluster from vcs-src/gpusim/python
 """
 
+from PyQt5 import QtCore
+
 from rdkit import Chem, DataStructs
 from rdkit.Chem import Draw
 from rdkit.Chem import rdMolDescriptors
@@ -34,9 +36,16 @@ def add_fingerprint_bin_to_smi_line(line, trust_smiles=False):
 
 def split_lines_add_fp(lines, dview=None, trust_smiles=False):
     if dview is not None:
-        return dview.map_sync(lambda x: add_fingerprint_bin_to_smi_line(x, trust_smiles=trust_smiles), lines)
+        return dview.map_sync(lambda x: add_fingerprint_bin_to_smi_line(x, trust_smiles=trust_smiles), lines) #noqa
     else:
         return map(add_fingerprint_bin_to_smi_line, lines)
+
+
+def compress_qbas(qba_list, dview=None):
+    if dview is not None:
+        return dview.map_sync(QtCore.qCompress, qba_list)
+    else:
+        return map(QtCore.qCompress, qba_list)
 
 
 def smiles_to_fingerprint_bin(smiles, trust_smiles=False):

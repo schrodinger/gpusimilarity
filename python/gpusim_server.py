@@ -57,7 +57,10 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                      })
 
         dbnames = form["dbnames"].value.split(',')
-        dbkeys = form["dbkeys"].value.split(',')
+        try:
+            dbkeys = form["dbkeys"].value.split(',')
+        except KeyError:  # Handle empty string not passed by HTML post
+            dbkeys = [""]
         if len(dbnames) != len(dbkeys):
             raise RuntimeError("Need key for each database.")
 

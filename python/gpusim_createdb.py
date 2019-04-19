@@ -40,7 +40,8 @@ class FPData:
     ID data, of the database
     """
 
-    def __init__(self):
+    def __init__(self, dview):
+        self.dview = dview
         self.smi_byte_data = [QtCore.QByteArray()]
         self.smi_qds = QtCore.QDataStream(self.smi_byte_data[0],
                                           QtCore.QIODevice.WriteOnly)
@@ -83,7 +84,7 @@ class FPData:
         self.id_qds.writeString(row[1])
         self.fp_qds.writeRawData(row[2])
 
-    def writeData(self, qds):
+    def writeData(self, qds, dview):
         """
         Write all the saved serialized data to a QDataStream
         @param qds: Stream output to file
@@ -92,9 +93,10 @@ class FPData:
         for qba_list in [self.fp_byte_data, self.smi_byte_data,
                          self.id_byte_data]:
             qds.writeInt(len(qba_list))
-            for byte_data in qba_list:
-                compressed_data = QtCore.qCompress(byte_data)
-                qds << compressed_data
+            compressed_byte_data = gpusim_utils.compress_qbas(qba_list,
+                                                              dview=dview)
+            for data in compressed_byte_data:
+                qds << data
 
 
 def main():
@@ -113,7 +115,7 @@ def main():
     input_fhandle = gzip.open(args.inputfile, 'rb')
     print("Processing Smiles...")
 
-    fpdata = FPData()
+    fpdata = FPData(dview)
 
     print("Reading lines...")
     read_bytes = 10000000
@@ -139,7 +141,7 @@ def main():
     qds.writeString(args.dbkey.encode())
     qds.writeInt(gpusim_utils.BITCOUNT)
     qds.writeInt(count)
-    fpdata.writeData(qds)
+    fpdata.writeData(qds, dview)
 
     qf.close()
 
