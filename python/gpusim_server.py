@@ -101,7 +101,7 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                 self.get_posted_data()
             request_num = random.randint(0, 2**31)
             print("Processing request {0}".format(request_num),
-                  file=sys.stderr)
+                  file=sys.stderr) #noqa
             output_qba = self.get_data(dbnames, dbkeys, src_smiles,
                                        return_count, similarity_cutoff,
                                        request_num)

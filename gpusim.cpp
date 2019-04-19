@@ -163,8 +163,9 @@ void GPUSimServer::extractData(const QString& database_fname,
     int current_qba = 1;
     for(auto& fp_vector : fingerprint_data) {
         qDebug() << "  loading" << current_qba++ << "of" << fp_qba_count;
-        QByteArray fp_qba;
-        datastream >> fp_qba;
+        QByteArray compressed_fp_qba, fp_qba;
+        datastream >> compressed_fp_qba;
+        fp_qba = qUncompress(compressed_fp_qba);
         fp_vector.reserve(fp_qba.size());
         fp_vector.insert(fp_vector.begin(), fp_qba.data(), fp_qba.data()+fp_qba.size());
     }
@@ -172,8 +173,9 @@ void GPUSimServer::extractData(const QString& database_fname,
     int smi_qba_count;
     datastream >> smi_qba_count;
     for(int i=0; i<smi_qba_count; i++) {
-        QByteArray smi_qba;
-        datastream >> smi_qba;
+        QByteArray compressed_smi_qba, smi_qba;
+        datastream >> compressed_smi_qba;
+        smi_qba = qUncompress(compressed_smi_qba);
         // Extract smiles vector from serialized data
         QDataStream smi_stream(smi_qba);
         while(!smi_stream.atEnd()) {
@@ -186,8 +188,9 @@ void GPUSimServer::extractData(const QString& database_fname,
     int id_qba_count;
     datastream >> id_qba_count;
     for(int i=0; i<id_qba_count; i++) {
-        QByteArray id_qba;
-        datastream >> id_qba;
+        QByteArray compressed_id_qba, id_qba;
+        datastream >> compressed_id_qba;
+        id_qba = qUncompress(compressed_id_qba);
         // Extract smiles vector from serialized data
         QDataStream id_stream(id_qba);
         while(!id_stream.atEnd()) {

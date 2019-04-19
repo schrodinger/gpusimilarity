@@ -93,7 +93,8 @@ class FPData:
                          self.id_byte_data]:
             qds.writeInt(len(qba_list))
             for byte_data in qba_list:
-                qds << byte_data
+                compressed_data = QtCore.qCompress(byte_data)
+                qds << compressed_data
 
 
 def main():
