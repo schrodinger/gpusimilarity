@@ -51,8 +51,30 @@ public:
     DecompressAssignFPRunnable(vector<char>& fp_in) : fp_vector(fp_in) {};
     void run() override {
         QByteArray fp_qba = qUncompress(compressed_data);
+        compressed_data.clear();
         fp_vector.reserve(fp_qba.size());
         fp_vector.insert(fp_vector.begin(), fp_qba.data(), fp_qba.data()+fp_qba.size());
+        fp_qba.clear();
+    }
+};
+
+
+class DecompressAssignStringRunnable : public QRunnable {
+public:
+    QByteArray compressed_data;
+    vector<char*>& string_vector;
+
+    DecompressAssignStringRunnable(vector<char*>& string_in) : string_vector(string_in) {};
+    void run() override {
+        QByteArray string_qba = qUncompress(compressed_data);
+        compressed_data.clear();
+        QDataStream string_stream(string_qba);
+        while(!string_stream.atEnd()) {
+            char* smi;
+            string_stream >> smi;
+            string_vector.push_back(smi);
+        }
+        string_qba.clear();
     }
 };
 
@@ -153,6 +175,8 @@ void GPUSimServer::extractData(const QString& database_fname,
                                 vector<char*>& smiles_vector,
                                 vector<char*>& ids_vector)
 {
+    vector<vector<char*> > smiles_data;
+    vector<vector<char*> > ids_data;
     QFile file(database_fname);
     file.open(QIODevice::ReadOnly);
     QDataStream datastream(&file);
@@ -171,8 +195,6 @@ void GPUSimServer::extractData(const QString& database_fname,
     datastream >> fp_bitcount;
     datastream >> fp_count;
 
-    smiles_vector.reserve(fp_count);
-    ids_vector.reserve(fp_count);
 
     int fp_qba_count;
     datastream >> fp_qba_count;
@@ -181,7 +203,7 @@ void GPUSimServer::extractData(const QString& database_fname,
     QThreadPool thread_pool;
 
     for(auto& fp_vector : fingerprint_data) {
-        qDebug() << "  loading" << current_qba++ << "of" << fp_qba_count;
+        qDebug() << "  loading FP " << current_qba++ << "of" << fp_qba_count;
         auto thread = new DecompressAssignFPRunnable(fp_vector);
         datastream >> thread->compressed_data;
         thread_pool.start(thread);
@@ -189,34 +211,44 @@ void GPUSimServer::extractData(const QString& database_fname,
 
     int smi_qba_count;
     datastream >> smi_qba_count;
-    for(int i=0; i<smi_qba_count; i++) {
-        QByteArray compressed_smi_qba, smi_qba;
-        datastream >> compressed_smi_qba;
-        smi_qba = qUncompress(compressed_smi_qba);
-        // Extract smiles vector from serialized data
-        QDataStream smi_stream(smi_qba);
-        while(!smi_stream.atEnd()) {
-            char* smi;
-            smi_stream >> smi;
-            smiles_vector.push_back(smi);
-        }
+    smiles_data.resize(smi_qba_count);
+    current_qba = 1;
+    for(auto& local_vector : smiles_data) {
+        qDebug() << "  loading SMI " << current_qba++ << "of" << smi_qba_count;
+        auto thread = new DecompressAssignStringRunnable(local_vector);
+        datastream >> thread->compressed_data;
+        thread_pool.start(thread);
     }
 
     int id_qba_count;
     datastream >> id_qba_count;
-    for(int i=0; i<id_qba_count; i++) {
-        QByteArray compressed_id_qba, id_qba;
-        datastream >> compressed_id_qba;
-        id_qba = qUncompress(compressed_id_qba);
-        // Extract smiles vector from serialized data
-        QDataStream id_stream(id_qba);
-        while(!id_stream.atEnd()) {
-            char* id;
-            id_stream >> id;
-            ids_vector.push_back(id);
-        }
+    ids_data.resize(id_qba_count);
+    current_qba = 1;
+    for(auto& local_vector : ids_data) {
+        qDebug() << "  loading ID " << current_qba++ << "of" << id_qba_count;
+        auto thread = new DecompressAssignStringRunnable(local_vector);
+        datastream >> thread->compressed_data;
+        thread_pool.start(thread);
     }
+
+    qDebug() << "  waiting for data processing threads to finish...";
     thread_pool.waitForDone();
+
+    qDebug() << "  merging smiles vectors";
+    for(auto& local_vector : smiles_data) {
+        smiles_vector.insert(smiles_vector.end(), local_vector.begin(),
+                local_vector.end());
+        local_vector.clear();
+    }
+
+    qDebug() << "  merging ID vectors";
+    for(auto& local_vector : ids_data) {
+        ids_vector.insert(ids_vector.end(), local_vector.begin(),
+                local_vector.end());
+        local_vector.clear();
+    }
+
+    qDebug() << "  finished merging vectors";
 }
 
 bool GPUSimServer::setupSocket()
@@ -282,6 +314,10 @@ void GPUSimServer::searchDatabases(const Fingerprint& query,
 
         vector<char *> l_results_smiles, l_results_ids;
         vector<float> l_results_scores;
+        if(!m_databases.contains(local_dbname)) {
+            qDebug() << "Unknown database " << local_dbname << " requested.";
+            continue;
+        }
         similaritySearch(query, local_dbname,
                 local_key, l_results_smiles, l_results_ids,
                 l_results_scores, results_requested, similarity_cutoff,
