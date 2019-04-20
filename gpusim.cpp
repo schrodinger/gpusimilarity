@@ -17,6 +17,8 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QSize>
+#include <QThread>
+#include <QThreadPool>
 #include <QTime>
 
 #include <algorithm>
@@ -40,6 +42,21 @@ const int DATABASE_VERSION = 3;
 
 namespace gpusim
 {
+
+class DecompressAssignFPRunnable : public QRunnable {
+public:
+    QByteArray compressed_data;
+    vector<char>& fp_vector;
+
+    DecompressAssignFPRunnable(vector<char>& fp_in) : fp_vector(fp_in) {};
+    void run() override {
+        QByteArray fp_qba = qUncompress(compressed_data);
+        fp_vector.reserve(fp_qba.size());
+        fp_vector.insert(fp_vector.begin(), fp_qba.data(), fp_qba.data()+fp_qba.size());
+    }
+};
+
+
 GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
 {
     qDebug() << "--------------------------";
@@ -161,13 +178,13 @@ void GPUSimServer::extractData(const QString& database_fname,
     datastream >> fp_qba_count;
     fingerprint_data.resize(fp_qba_count);
     int current_qba = 1;
+    QThreadPool thread_pool;
+
     for(auto& fp_vector : fingerprint_data) {
         qDebug() << "  loading" << current_qba++ << "of" << fp_qba_count;
-        QByteArray compressed_fp_qba, fp_qba;
-        datastream >> compressed_fp_qba;
-        fp_qba = qUncompress(compressed_fp_qba);
-        fp_vector.reserve(fp_qba.size());
-        fp_vector.insert(fp_vector.begin(), fp_qba.data(), fp_qba.data()+fp_qba.size());
+        auto thread = new DecompressAssignFPRunnable(fp_vector);
+        datastream >> thread->compressed_data;
+        thread_pool.start(thread);
     }
 
     int smi_qba_count;
@@ -199,6 +216,7 @@ void GPUSimServer::extractData(const QString& database_fname,
             ids_vector.push_back(id);
         }
     }
+    thread_pool.waitForDone();
 }
 
 bool GPUSimServer::setupSocket()

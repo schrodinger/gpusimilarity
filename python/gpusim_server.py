@@ -112,15 +112,15 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                 return_count, smiles, ids, scores = self.deserialize_results(
                     request_num, output_qba)
             except RuntimeError:
-                self.flush_socket(dbname)
+                self.flush_socket()
                 raise
 
             return smiles, ids, scores, src_smiles
         finally:
             search_mutex.unlock()
 
-    def flush_socket(self, dbname):
-        socket = sockets[dbname]
+    def flush_socket(self):
+        global socket
         while not socket.atEnd():
             socket.readAll()
 
