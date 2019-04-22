@@ -21,24 +21,30 @@ from rdkit.Chem import rdMolDescriptors
 BITCOUNT = 1024
 
 
-def add_fingerprint_bin_to_smi_line(line, trust_smiles=False):
+def add_fingerprint_bin_to_smi_line(line, trust_smiles=False,):
     splitl = line.strip().split()
     try:
         smiles, cid = splitl[:2]
     except ValueError:
         raise ValueError(splitl)
-    fp_binary, canon_smiles = smiles_to_fingerprint_bin(smiles,
-                                            trust_smiles=trust_smiles) #noqa
-    if fp_binary is None:
+    try:
+        fp_binary, canon_smiles = smiles_to_fingerprint_bin(smiles,
+                                                trust_smiles=trust_smiles) #noqa
+    except RuntimeError:
+        print("Erorr processing: '{0}'".format(line))
         return None
+
     return (canon_smiles, cid, fp_binary)
 
 
 def split_lines_add_fp(lines, dview=None, trust_smiles=False):
+    def per_line_func(line):
+        return add_fingerprint_bin_to_smi_line(line, trust_smiles=trust_smiles)
+
     if dview is not None:
-        return dview.map_sync(lambda x: add_fingerprint_bin_to_smi_line(x, trust_smiles=trust_smiles), lines) #noqa
+        return dview.map_sync(per_line_func, lines) #noqa
     else:
-        return map(add_fingerprint_bin_to_smi_line, lines)
+        return map(per_line_func, lines)
 
 
 def compress_qbas(qba_list, dview=None):
@@ -51,7 +57,7 @@ def compress_qbas(qba_list, dview=None):
 def smiles_to_fingerprint_bin(smiles, trust_smiles=False):
     mol = Chem.MolFromSmiles(smiles, sanitize=(not trust_smiles))
     if mol is None:
-        return None, None
+        raise RuntimeError("Bad structure")
     if trust_smiles:
         mol.UpdatePropertyCache()
         Chem.FastFindRings(mol)
