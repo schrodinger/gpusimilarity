@@ -21,7 +21,7 @@ from rdkit.Chem import rdMolDescriptors
 BITCOUNT = 1024
 
 
-def add_fingerprint_bin_to_smi_line(line, trust_smiles=False,):
+def add_fingerprint_bin_to_smi_line(line, trust_smiles=False):
     splitl = line.strip().split()
     try:
         smiles, cid = splitl[:2]
@@ -31,7 +31,7 @@ def add_fingerprint_bin_to_smi_line(line, trust_smiles=False,):
         fp_binary, canon_smiles = smiles_to_fingerprint_bin(smiles,
                                                 trust_smiles=trust_smiles) #noqa
     except RuntimeError:
-        print("Erorr processing: '{0}'".format(line))
+        print(f"Error processing: '{line}'")
         return None
 
     return (canon_smiles, cid, fp_binary)
@@ -41,10 +41,8 @@ def split_lines_add_fp(lines, dview=None, trust_smiles=False):
     def per_line_func(line):
         return add_fingerprint_bin_to_smi_line(line, trust_smiles=trust_smiles)
 
-    if dview is not None:
-        return dview.map_sync(per_line_func, lines) #noqa
-    else:
-        return map(per_line_func, lines)
+    map_func = dview.map_sync if dview else map
+    return map_func(per_line_func, lines)
 
 
 def compress_qbas(qba_list, dview=None):

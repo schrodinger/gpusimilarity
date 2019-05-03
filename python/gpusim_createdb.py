@@ -40,8 +40,7 @@ class FPData:
     ID data, of the database
     """
 
-    def __init__(self, dview):
-        self.dview = dview
+    def __init__(self):
         self.smi_byte_data = [QtCore.QByteArray()]
         self.smi_qds = QtCore.QDataStream(self.smi_byte_data[0],
                                           QtCore.QIODevice.WriteOnly)
@@ -115,7 +114,7 @@ def main():
     input_fhandle = gzip.open(args.inputfile, 'rb')
     print("Processing Smiles...")
 
-    fpdata = FPData(dview)
+    fpdata = FPData()
 
     print("Reading lines...")
     read_bytes = 10000000

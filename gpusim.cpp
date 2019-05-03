@@ -54,7 +54,6 @@ public:
         compressed_data.clear();
         fp_vector.reserve(fp_qba.size());
         fp_vector.insert(fp_vector.begin(), fp_qba.data(), fp_qba.data()+fp_qba.size());
-        fp_qba.clear();
     }
 };
 
@@ -175,8 +174,6 @@ void GPUSimServer::extractData(const QString& database_fname,
                                 vector<char*>& smiles_vector,
                                 vector<char*>& ids_vector)
 {
-    vector<vector<char*> > smiles_data;
-    vector<vector<char*> > ids_data;
     QFile file(database_fname);
     file.open(QIODevice::ReadOnly);
     QDataStream datastream(&file);
@@ -211,6 +208,7 @@ void GPUSimServer::extractData(const QString& database_fname,
 
     int smi_qba_count;
     datastream >> smi_qba_count;
+    vector<vector<char*> > smiles_data;
     smiles_data.resize(smi_qba_count);
     current_qba = 1;
     for(auto& local_vector : smiles_data) {
@@ -222,6 +220,7 @@ void GPUSimServer::extractData(const QString& database_fname,
 
     int id_qba_count;
     datastream >> id_qba_count;
+    vector<vector<char*> > ids_data;
     ids_data.resize(id_qba_count);
     current_qba = 1;
     for(auto& local_vector : ids_data) {
