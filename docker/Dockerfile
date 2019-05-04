@@ -12,6 +12,9 @@ RUN wget https://github.com/rdkit/rdkit/archive/Release_2019_03_1.tar.gz && \
     make && make install && cd / && rm -rf Release_2019_03_1.tar.gz  \
     rdkit-Release_2019_03_1
 
+# Use specific hash/version in checkout to ensure cacheing works
 RUN git clone https://github.com/schrodinger/gpusimilarity.git && \
-    mkdir bld && cd bld && cmake ../gpusimilarity && make -j5
+    cd gpusimilarity && \
+    git checkout 1570f5c46ff21a6ae8238a28ca0fa3a13d8e87ac && \
+    mkdir bld && cd bld && cmake ../ && make -j5
 
