@@ -83,7 +83,7 @@ class FPData:
         self.id_qds.writeString(row[1])
         self.fp_qds.writeRawData(row[2])
 
-    def writeData(self, qds):
+    def writeData(self, qds, dview):
         """
         Write all the saved serialized data to a QDataStream
         @param qds: Stream output to file
@@ -92,8 +92,10 @@ class FPData:
         for qba_list in [self.fp_byte_data, self.smi_byte_data,
                          self.id_byte_data]:
             qds.writeInt(len(qba_list))
-            for byte_data in qba_list:
-                qds << byte_data
+            compressed_byte_data = gpusim_utils.compress_qbas(qba_list,
+                                                              dview=dview)
+            for data in compressed_byte_data:
+                qds << data
 
 
 def main():
@@ -138,7 +140,7 @@ def main():
     qds.writeString(args.dbkey.encode())
     qds.writeInt(gpusim_utils.BITCOUNT)
     qds.writeInt(count)
-    fpdata.writeData(qds)
+    fpdata.writeData(qds, dview)
 
     qf.close()
 
