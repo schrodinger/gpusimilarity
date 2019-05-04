@@ -57,10 +57,7 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                      })
 
         dbnames = form["dbnames"].value.split(',')
-        try:
-            dbkeys = form["dbkeys"].value.split(',')
-        except KeyError:  # Handle empty string not passed by HTML post
-            dbkeys = [""]
+        dbkeys = form["dbkeys"].value.split(',')
         if len(dbnames) != len(dbkeys):
             raise RuntimeError("Need key for each database.")
 
@@ -104,7 +101,7 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                 self.get_posted_data()
             request_num = random.randint(0, 2**31)
             print("Processing request {0}".format(request_num),
-                  file=sys.stderr) #noqa
+                  file=sys.stderr)
             output_qba = self.get_data(dbnames, dbkeys, src_smiles,
                                        return_count, similarity_cutoff,
                                        request_num)
@@ -112,15 +109,15 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                 return_count, smiles, ids, scores = self.deserialize_results(
                     request_num, output_qba)
             except RuntimeError:
-                self.flush_socket()
+                self.flush_socket(dbname)
                 raise
 
             return smiles, ids, scores, src_smiles
         finally:
             search_mutex.unlock()
 
-    def flush_socket(self):
-        global socket
+    def flush_socket(self, dbname):
+        socket = sockets[dbname]
         while not socket.atEnd():
             socket.readAll()
 

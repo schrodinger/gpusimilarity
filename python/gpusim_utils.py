@@ -11,8 +11,6 @@ To do this, it requires a virtualenv with ipyparallel installed
 YOU MUST START ipcluster from vcs-src/gpusim/python
 """
 
-from PyQt5 import QtCore
-
 from rdkit import Chem, DataStructs
 from rdkit.Chem import Draw
 from rdkit.Chem import rdMolDescriptors
@@ -27,35 +25,24 @@ def add_fingerprint_bin_to_smi_line(line, trust_smiles=False):
         smiles, cid = splitl[:2]
     except ValueError:
         raise ValueError(splitl)
-    try:
-        fp_binary, canon_smiles = smiles_to_fingerprint_bin(smiles,
-                                                trust_smiles=trust_smiles) #noqa
-    except RuntimeError:
-        print(f"Error processing: '{line}'")
+    fp_binary, canon_smiles = smiles_to_fingerprint_bin(smiles,
+                                            trust_smiles=trust_smiles) #noqa
+    if fp_binary is None:
         return None
-
     return (canon_smiles, cid, fp_binary)
 
 
 def split_lines_add_fp(lines, dview=None, trust_smiles=False):
-    def per_line_func(line):
-        return add_fingerprint_bin_to_smi_line(line, trust_smiles=trust_smiles)
-
-    map_func = dview.map_sync if dview else map
-    return map_func(per_line_func, lines)
-
-
-def compress_qbas(qba_list, dview=None):
     if dview is not None:
-        return dview.map_sync(QtCore.qCompress, qba_list)
+        return dview.map_sync(lambda x: add_fingerprint_bin_to_smi_line(x, trust_smiles=trust_smiles), lines)
     else:
-        return map(QtCore.qCompress, qba_list)
+        return map(add_fingerprint_bin_to_smi_line, lines)
 
 
 def smiles_to_fingerprint_bin(smiles, trust_smiles=False):
     mol = Chem.MolFromSmiles(smiles, sanitize=(not trust_smiles))
     if mol is None:
-        raise RuntimeError("Bad structure")
+        return None, None
     if trust_smiles:
         mol.UpdatePropertyCache()
         Chem.FastFindRings(mol)
