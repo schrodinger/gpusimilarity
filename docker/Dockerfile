@@ -12,12 +12,12 @@ RUN wget https://github.com/rdkit/rdkit/archive/Release_2019_03_1.tar.gz && \
     make && make install && cd / && rm -rf Release_2019_03_1.tar.gz  \
     rdkit-Release_2019_03_1
 
+# IMPORTANT:  Change this to remote branch you want to build
 ENV BRANCH=docker
 
 # Used to prevent github cache from stopping rebuild when branch changes
 ADD https://api.github.com/repos/schrodinger/gpusimilarity/git/refs/heads/$BRANCH version.txt
 
-# Use specific hash/version in checkout to ensure cacheing works
 RUN git clone https://github.com/schrodinger/gpusimilarity.git && \
     cd gpusimilarity && \
     git checkout $BRANCH && \
