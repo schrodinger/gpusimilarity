@@ -6,9 +6,9 @@ Architecture and benchmarks were presented in [a presentation at the 2018 RDKit 
 
 ## Basic Benchmark
 
-On a machine with four Tesla V100, searching one billion compounds takes ~0.4 seconds.
+On a machine with four Tesla V100, searching one billion compounds takes ~0.2 seconds.
 
-See [RDKit Presentation](gpusimilarity_rdkit_presentation.pdf) for much more in depth benchmarks.
+See [RDKit Presentation](gpusimilarity_rdkit_presentation.pdf) for much more in depth benchmarks (that are slightly out of date).
 
 ## Example integration
 
