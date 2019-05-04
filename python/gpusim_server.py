@@ -34,7 +34,7 @@ search_mutex = QtCore.QMutex()
 try:
     from gpusim_server_loc import GPUSIM_EXEC  # Used in schrodinger env
 except ImportError:
-    GPUSIM_EXEC = './gpusimserver'
+    GPUSIM_EXEC = '../gpusimserver'
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
