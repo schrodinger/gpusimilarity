@@ -13,9 +13,15 @@ built to produce an image capable of running GPUSimilarity.
 Both releases and master are always built and uploaded publicly already.  You
 can access them via:
 For master:
-`docker pull klorton/gpusimilarity:latest`
+```
+docker pull klorton/gpusimilarity:latest
+```
+
 For releases:
-`docker pull klorton/gpusimilarity:v1.0`
+
+```
+docker pull klorton/gpusimilarity:v1.0
+```
 
 The underlying requirements will change very little, so after the initial
 build/pull new docker layers will only require a few megabytes for
