@@ -33,8 +33,8 @@ TODO
 ## How to start a gpusimilarity server interactively
 ```
 /bin/nvidia-docker run --net=host -v /path/to/fsim/files:/mnt/fsim -it \
-klorton/gpusimilarity:latest bash -c 'python3 /gpusimilarity/bld/python/gpusim_server.py \
-/path/to/fsim/files/1.fsim --port 8080 --http_interface'
+klorton/gpusimilarity:latest python3 /gpusimilarity/bld/python/gpusim_server.py \
+/path/to/fsim/files/1.fsim --port 8080 --http_interface
 ```
 
 ## Example of a systemd configuration file
