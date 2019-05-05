@@ -4,7 +4,7 @@ The preferred method of using Docker is to just to download the publicly
 released pre-built docker images.  In addition, the enclosed Dockerfile can be
 built to produce an image capable of running GPUSimilarity.
 
-##Requirements
+## Requirements
 * nvidia-docker (regular docker will not expose GPUs)
 * Newest versions of nvidia drivers
 * Recommended for production:  systemd / nginx
