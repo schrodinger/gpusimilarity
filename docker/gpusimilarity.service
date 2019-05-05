@@ -1,0 +1,22 @@
+[Unit]
+Description=Service to return GPUSimilarity results
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+TimeoutStartSec=0
+User=gpusim
+ExecStop=-/bin/nvidia-docker stop %n
+ExecStartPre=-/bin/nvidia-docker stop %n
+ExecStartPre=-/bin/nvidia-docker rm %n
+ExecStartPre=-/bin/nvidia-docker pull klorton/gpusimilarity:latest
+ExecStart=/bin/nvidia-docker run --net=host --name %n \
+-v /PATH/TO/FSIM:/mnt/fsim klorton/gpusimilarity:latest \
+python3 /gpusimilarity/bld/python/gpusim_server.py --port 8080 \
+/mnt/fsim/YOUR_FSIM_FILE.fsim
+
+[Install]
+WantedBy=multi-user.target

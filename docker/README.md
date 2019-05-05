@@ -44,21 +44,7 @@ klorton/gpusimilarity:latest python3 /gpusimilarity/bld/python/gpusim_server.py 
 ```
 
 ## Example of a systemd configuration file
-```
-[Unit]
-Description=Service to return GPUSimilarity results
-After=docker.service
-
-[Service]
-Type=simple
-Restart=always
-RestartSec=10
-User=gpusim
-ExecStart=/bin/nvidia-docker run --net=host -v /path/to/fsim:/mnt/fsim klorton/gpusimilarity:latest python3 /gpusimilarity/bld/python/gpusim_server.py --port 8080 /mnt/fsim/your_file.fsim
-
-[Install]
-WantedBy=multi-user.target
-```
+See [the provided service file](gpusimilarity.service) to be placed in `/etc/systemd/system/`
 
 ## Additional steps you'll want to take for production
 * The `--http_interface` option is only for testing **never** use it in production as it hasn't been hardened at all
