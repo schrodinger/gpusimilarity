@@ -333,29 +333,32 @@ void GPUSimServer::searchDatabases(const Fingerprint& query,
 
     map<string, string> smiles_to_ids;
     for(auto result : sortable_results) {
-        if(smiles_to_ids.count(result.second.first) > 0) {
+        const auto& smiles = result.second.first;
+        const auto& id = result.second.second;
+        if(smiles_to_ids.count(smiles) > 0) {
             std::stringstream ss;
-            ss << smiles_to_ids[result.second.first];
+            ss << smiles_to_ids[smiles];
             ss << ";:;";
-            ss << result.second.second;
-            smiles_to_ids[result.second.first] = ss.str();
+            ss << id;
+            smiles_to_ids[smiles] = ss.str();
         } else {
-            smiles_to_ids[result.second.first] = result.second.second;
+            smiles_to_ids[smiles] = id;
         }
         if(smiles_to_ids.size() >= (unsigned int)results_requested) break;
-        qDebug() << "Adding SMILES " << result.second.first;
     }
 
 
     int written_count = 0;
     set<string> smiles_written;
     for(auto result : sortable_results) {
-        if(smiles_written.count(result.second.first) > 0) continue;
-        smiles_written.insert(result.second.first);
-        results_scores.push_back(result.first);
-        results_smiles.push_back(result.second.first);
-        results_ids.push_back(
-                strdup(smiles_to_ids[result.second.first].c_str()));
+        const auto& score = result.first;
+        const auto& smiles = result.second.first;
+        if(smiles_written.count(smiles) > 0) continue;
+        smiles_written.insert(smiles);
+        results_scores.push_back(score);
+        results_smiles.push_back(smiles);
+        // strdup to hand memory handling off to receiver
+        results_ids.push_back(strdup(smiles_to_ids[smiles].c_str()));
         if(++written_count >= results_requested) break;
     }
 }
