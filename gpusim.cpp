@@ -25,6 +25,7 @@
 #include <exception>
 #include <map>
 #include <math.h>
+#include <set>
 #include <sstream>
 
 #include "fingerprintdb_cuda.h"
@@ -32,6 +33,7 @@
 
 using std::map;
 using std::pair;
+using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;
@@ -329,15 +331,33 @@ void GPUSimServer::searchDatabases(const Fingerprint& query,
     std::sort(sortable_results.begin(), sortable_results.end());
     std::reverse(sortable_results.begin(), sortable_results.end());
 
+    map<string, string> smiles_to_ids;
     for(auto result : sortable_results) {
+        if(smiles_to_ids.count(result.second.first) > 0) {
+            std::stringstream ss;
+            ss << smiles_to_ids[result.second.first];
+            ss << ";:;";
+            ss << result.second.second;
+            smiles_to_ids[result.second.first] = ss.str();
+        } else {
+            smiles_to_ids[result.second.first] = result.second.second;
+        }
+        if(smiles_to_ids.size() >= (unsigned int)results_requested) break;
+        qDebug() << "Adding SMILES " << result.second.first;
+    }
+
+
+    int written_count = 0;
+    set<string> smiles_written;
+    for(auto result : sortable_results) {
+        if(smiles_written.count(result.second.first) > 0) continue;
+        smiles_written.insert(result.second.first);
         results_scores.push_back(result.first);
         results_smiles.push_back(result.second.first);
-        results_ids.push_back(result.second.second);
+        results_ids.push_back(
+                strdup(smiles_to_ids[result.second.first].c_str()));
+        if(++written_count >= results_requested) break;
     }
-    int result_size = std::min(results_requested, (int)results_scores.size());
-    results_scores.resize(result_size);
-    results_smiles.resize(result_size);
-    results_ids.resize(result_size);
 }
 
 void GPUSimServer::incomingSearchRequest()
@@ -397,25 +417,17 @@ void GPUSimServer::incomingSearchRequest()
     QDataStream smiles_stream(&output_smiles, QIODevice::WriteOnly);
     QDataStream ids_stream(&output_ids, QIODevice::WriteOnly);
     QDataStream scores_stream(&output_scores, QIODevice::WriteOnly);
-    int dedup_count = 0;
     for (unsigned int i = 0; i < results_smiles.size(); i++) {
-        std::stringstream ss;
-        ss << results_ids[i];
         smiles_stream << results_smiles[i];
-        while(i+1 < results_smiles.size()) {
-            if(strcmp(results_smiles[i], results_smiles[i+1])!=0) break;
-            ss << ";:;" << results_ids[++i];
-        }
-        ids_stream << ss.str().c_str();
+        ids_stream << results_ids[i];
         scores_stream << results_scores[i];
-        dedup_count++;
     }
 
     // Transmit binary data to client and flush the buffered data
     QByteArray ints_qba;
     QDataStream ints_qds(&ints_qba, QIODevice::WriteOnly);
     ints_qds << request_num;
-    ints_qds << dedup_count;
+    ints_qds << (int)results_smiles.size();
 
     clientConnection->write(ints_qba);
     clientConnection->write(output_smiles);
