@@ -6,9 +6,9 @@ Architecture and benchmarks were presented in [a presentation at the 2018 RDKit 
 
 ## Basic Benchmark
 
-On a machine with four Tesla V100, searching one billion compounds takes ~0.4 seconds.
+On a machine with four Tesla V100, searching one billion compounds takes ~0.2 seconds.
 
-See [RDKit Presentation](gpusimilarity_rdkit_presentation.pdf) for much more in depth benchmarks.
+See [RDKit Presentation](gpusimilarity_rdkit_presentation.pdf) for much more in depth benchmarks (that are slightly out of date).
 
 ## Example integration
 
@@ -16,7 +16,12 @@ Here is a video of this backend being utilized for immediate-response searching 
 
 [![GPUSimilarity Gadget](http://img.youtube.com/vi/DZhknAXXEo4/0.jpg)](https://www.youtube.com/watch?v=T11UXEoF_rk)
 
-## Dependencies
+## Using GPUSimilarity
+**It is highly recommended that you use docker for building/running.**
+
+See [Our Docker Readme](docker/)
+
+## Dependencies for Building (recommended only for development)
 * RDKit (At Python level, not compilation)
 * Qt 5.2+ (including QtNetwork)
 * PyQt
@@ -27,6 +32,7 @@ Here is a video of this backend being utilized for immediate-response searching 
 * Optional: Doxygen for generating documents
 
 ## Building with CMake and running unit tests with CTest
+**Recommended only for development, see Docker**
 ```
 From parent directory of source:
 mkdir bld
@@ -48,6 +54,7 @@ make doc_doxygen
 The result is in bld/doc/html
 
 ## Running
+**Recommended only for development, see Docker**
 ### For basic json-response http endpoint:
 From build directory:
 `python3 ${SRC_DIR}/python/gpusim_server.py <fingerprint fsim file>`
