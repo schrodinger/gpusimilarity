@@ -8,7 +8,8 @@ ENV RDBASE=/rdkit-Release_2019_03_1
 RUN wget https://github.com/rdkit/rdkit/archive/Release_2019_03_1.tar.gz && \
     tar zxvf Release_2019_03_1.tar.gz && cd rdkit-Release_2019_03_1 && \
     mkdir bld && cd bld && cmake -DRDK_INSTALL_INTREE=OFF \
-    -DCMAKE_INSTALL_PREFIX=/usr -DPYTHON_EXECUTABLE=/usr/bin/python3 .. && \
+    -DCMAKE_INSTALL_PREFIX=/usr -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+    -DRDK_INSTALL_STATIC_LIBS=OFF -DRDK_BUILD_CPP_TESTS=OFF .. && \
     make && make install && cd / && rm -rf Release_2019_03_1.tar.gz  \
     rdkit-Release_2019_03_1
 

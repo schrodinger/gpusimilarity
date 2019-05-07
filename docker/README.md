@@ -34,7 +34,15 @@ docker build -t gpusim:internal .
 ```
 
 ## How to use to build a fingerprint file
-TODO
+```
+docker run -v /PATH/TO/SMIGZ_DIR:/data -it gpusim python3 \
+/gpusimilarity/bld/python/gpusim_createdb.py /data/INPUT.smi.gz \
+/data/OUTPUT.fsim
+```
+
+This will run single threaded.  If you're building huge databases you should
+enter the container interactively with the data directory mounted, and follow
+the regular instructions from the parent ReadMe to run multithreaded.
 
 ## How to start a gpusimilarity server interactively
 ```
@@ -43,10 +51,14 @@ klorton/gpusimilarity:latest python3 /gpusimilarity/bld/python/gpusim_server.py 
 /mnt/fsim/1.fsim --port 8080 --http_interface
 ```
 
+Once the server says "Ready for Searches", you should be able to test it by
+either using a graphical web browser or links to access "http://localhost:8080"
+
 ## Example of a systemd configuration file
 See [the provided service file](gpusimilarity.service) to be placed in `/etc/systemd/system/`
 
 ## Additional steps you'll want to take for production
-* The `--http_interface` option is only for testing **never** use it in production as it hasn't been hardened at all
+* The `--http_interface` option is only for testing **never** use it in
+  production as it hasn't been hardened at all
 * You should use a systemd script to start/stop the service, including restarts
 * **Never** expose the http from this service directly, use nginx or equivalent with certificates to expose via ssl/https.
