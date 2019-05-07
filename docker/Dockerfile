@@ -14,7 +14,7 @@ RUN wget https://github.com/rdkit/rdkit/archive/Release_2019_03_1.tar.gz && \
     rdkit-Release_2019_03_1
 
 # IMPORTANT:  Change this to remote branch you want to build
-ENV BRANCH=docker
+ENV BRANCH=master
 
 # Used to prevent github cache from stopping rebuild when branch changes
 ADD https://api.github.com/repos/schrodinger/gpusimilarity/git/refs/heads/$BRANCH version.txt
