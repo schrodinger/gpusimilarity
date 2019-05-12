@@ -4,11 +4,11 @@
 #include <memory>
 #include <string>
 
+#include "qstring_hash.h"
+#include "types.h"
 #include <QHash>
 #include <QObject>
 #include <QString>
-#include "qstring_hash.h"
-#include "types.h"
 
 class QByteArray;
 class QSize;
@@ -18,8 +18,7 @@ class QLocalServer;
 namespace gpusim
 {
 class FingerprintDB;
-enum class CalcType {GPU, CPU};
-
+enum class CalcType { GPU, CPU };
 
 class GPUSimServer : public QObject
 {
@@ -31,7 +30,7 @@ class GPUSimServer : public QObject
      * @param database_fname: .fsim file storing relevant data in binary format
      * @param gpu_bitcount: If 0, then auto-calculate optimal value
      */
-    GPUSimServer(const QStringList& database_fnames, int gpu_bitcount=0);
+    GPUSimServer(const QStringList& database_fnames, int gpu_bitcount = 0);
 
     /**
      * @brief
@@ -44,24 +43,24 @@ class GPUSimServer : public QObject
      * @param results_ids: Vector to store IDs of results
      * @param results_scores: Vector to store scores of results
      * @param return_count: Maximum number of results to return
-     * @param similarity_cutoff: Minimum similarity score to return molecules for
+     * @param similarity_cutoff: Minimum similarity score to return molecules
+     * for
      * @param calc_type: Whether to search on CPU or GPU
      */
-    void similaritySearch(const Fingerprint& reference,
-                          const QString& dbname,
+    void similaritySearch(const Fingerprint& reference, const QString& dbname,
                           const QString& dbkey,
                           std::vector<char*>& results_smiles,
                           std::vector<char*>& results_ids,
                           std::vector<float>& results_scores,
-                          unsigned int return_count,
-                          float similarity_cutoff,
-                          CalcType calc_type=CalcType::GPU);
+                          unsigned int return_count, float similarity_cutoff,
+                          CalcType calc_type = CalcType::GPU);
 
     void searchDatabases(const Fingerprint& reference, int results_requested,
-            float similarity_cutoff,
-            std::map<QString, QString>& dbname_to_key,
-            std::vector<char *>&  results_smiles,
-            std::vector<char *>& results_ids, std::vector<float>& results_scores);
+                         float similarity_cutoff,
+                         std::map<QString, QString>& dbname_to_key,
+                         std::vector<char*>& results_smiles,
+                         std::vector<char*>& results_ids,
+                         std::vector<float>& results_scores);
 
     /**
      * @brief
@@ -88,9 +87,9 @@ class GPUSimServer : public QObject
 
     bool setupSocket();
     void extractData(const QString& database_fname, int& fp_bitcount,
-            int& fp_count, QString& dbkey,
-            std::vector<std::vector<char> >& fingerprint_data,
-            std::vector<char*>& smiles_vector,
-            std::vector<char*>& ids_vector);
+                     int& fp_count, QString& dbkey,
+                     std::vector<std::vector<char>>& fingerprint_data,
+                     std::vector<char*>& smiles_vector,
+                     std::vector<char*>& ids_vector);
 };
-}
+} // namespace gpusim

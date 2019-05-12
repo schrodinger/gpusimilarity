@@ -8,8 +8,8 @@
 #define FINGERPRINTDB_CUDA
 
 #include <memory>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include <QObject>
 #include <QString>
@@ -26,21 +26,21 @@ class FingerprintDB;
 class FingerprintDBPriv;
 
 typedef std::pair<char*, char*> ResultData;
-typedef std::pair<float, ResultData > SortableResult;
+typedef std::pair<float, ResultData> SortableResult;
 
 unsigned int get_gpu_count();
 unsigned int get_next_gpu(size_t required_memory);
 
 class FingerprintDBStorage
 {
-public:
+  public:
     friend class FingerprintDB;
 
-    FingerprintDBStorage(FingerprintDB* parent, std::vector<char>& fp_data, 
-            int index_offset, int fp_bitcount);
+    FingerprintDBStorage(FingerprintDB* parent, std::vector<char>& fp_data,
+                         int index_offset, int fp_bitcount);
     unsigned int getOffsetIndex(unsigned int without_offset);
 
-private:
+  private:
     FingerprintDB* m_parent;
     std::vector<int> m_data;
     std::shared_ptr<FingerprintDBPriv> m_priv; // Used to conceal cuda types
@@ -48,16 +48,16 @@ private:
     const int m_count;
     int m_gpu_device;
 };
-    
+
 class FingerprintDB : public QObject
 {
-  friend class FingerprintDBStorage;
+    friend class FingerprintDBStorage;
 
   public:
     FingerprintDB(int fp_bitcount, int fp_count, const QString& dbkey,
-            std::vector<std::vector<char> >& data,
-            std::vector<char*>& smiles_vector,
-            std::vector<char*>& ids_vector);
+                  std::vector<std::vector<char>>& data,
+                  std::vector<char*>& smiles_vector,
+                  std::vector<char*>& ids_vector);
 
     /**
      * @brief
@@ -79,7 +79,8 @@ class FingerprintDB : public QObject
      * and the local index inside that block
      */
     void getStorageAndLocalIndex(unsigned int offset_index,
-            FingerprintDBStorage** storage, unsigned int* local_index) const;
+                                 FingerprintDBStorage** storage,
+                                 unsigned int* local_index) const;
 
     /**
      * @brief
@@ -104,28 +105,29 @@ class FingerprintDB : public QObject
     void search(const Fingerprint& query, const QString& dbkey,
                 std::vector<char*>& results_smiles,
                 std::vector<char*>& results_ids,
-                std::vector<float>& results_scores,
-                unsigned int return_count,
+                std::vector<float>& results_scores, unsigned int return_count,
                 float similarity_cutoff) const;
 
     void search_cpu(const Fingerprint& query, const QString& dbkey,
-            std::vector<char*>& results_smiles,
-            std::vector<char*>& results_ids,
-            std::vector<float>& results_scores,
-            unsigned int return_count,
-            float similarity_cutoff) const;
-
+                    std::vector<char*>& results_smiles,
+                    std::vector<char*>& results_ids,
+                    std::vector<float>& results_scores,
+                    unsigned int return_count, float similarity_cutoff) const;
 
     char* getSmiles(int index) const { return m_smiles[index]; }
     char* getID(int index) const { return m_ids[index]; }
 
     size_t getFingerprintDataSize() const { return m_total_data_size; };
-    int getFingerprintBitcount() const { return m_fp_intsize * sizeof(int) * 8; }
+    int getFingerprintBitcount() const
+    {
+        return m_fp_intsize * sizeof(int) * 8;
+    }
 
     void search_storage(const Fingerprint& query,
-            const std::shared_ptr<FingerprintDBStorage>& storage,
-            std::vector<SortableResult>* sortable_results,
-            unsigned int return_count, float similarity_cutoff) const;
+                        const std::shared_ptr<FingerprintDBStorage>& storage,
+                        std::vector<SortableResult>* sortable_results,
+                        unsigned int return_count,
+                        float similarity_cutoff) const;
 
   protected:
     // INTERNAL:  A CPU implementation of tanimoto similarity for validation
@@ -133,14 +135,13 @@ class FingerprintDB : public QObject
                                   const Fingerprint& fp2) const;
     std::vector<int> fold_data(const std::vector<int>& unfolded) const;
 
-    std::vector<std::shared_ptr<FingerprintDBStorage> > m_storage;
+    std::vector<std::shared_ptr<FingerprintDBStorage>> m_storage;
 
     int m_total_count, m_fp_intsize, m_fold_factor;
     size_t m_total_data_size;
     std::vector<char*> m_smiles;
     std::vector<char*> m_ids;
     QString m_dbkey;
-
 };
 
 size_t get_available_gpu_memory();
@@ -150,9 +151,9 @@ size_t get_available_gpu_memory();
  * Used for CPU sorting to just get top results in O(number_required*N)
  */
 void top_results_bubble_sort(std::vector<int>& indices,
-        std::vector<float>& scores, int number_required);
+                             std::vector<float>& scores, int number_required);
 
-std::vector<int> fold_fingerprint(std::vector<int> &, const int);
+std::vector<int> fold_fingerprint(std::vector<int>&, const int);
 
 } // namespace gpusim
 
