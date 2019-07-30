@@ -18,12 +18,12 @@ using namespace gpusim;
 using std::vector;
 
 void FingerprintDB::search_cpu(const Fingerprint& query, const QString& dbkey,
-            unsigned int max_return_count,
-            float similarity_cutoff,
-            std::vector<char*>& results_smiles,
-            std::vector<char*>& results_ids,
-            std::vector<float>& results_scores,
-            unsigned long& approximate_result_count) const
+                               unsigned int max_return_count,
+                               float similarity_cutoff,
+                               std::vector<char*>& results_smiles,
+                               std::vector<char*>& results_ids,
+                               std::vector<float>& results_scores,
+                               unsigned long& approximate_result_count) const
 {
     if (dbkey != m_dbkey) {
         qDebug() << "Key check failed, returning empty results";

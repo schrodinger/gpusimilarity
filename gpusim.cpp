@@ -273,24 +273,22 @@ bool GPUSimServer::setupSocket()
     return true;
 }
 
-void GPUSimServer::similaritySearch(const Fingerprint& reference,
-                                    const QString& dbname, const QString& dbkey,
-                                    unsigned int max_return_count,
-                                    float similarity_cutoff,
-                                    CalcType calc_type,
-                                    vector<char*>& results_smiles,
-                                    vector<char*>& results_ids,
-                                    vector<float>& results_scores,
-                                    unsigned long& approximate_result_count)
+void GPUSimServer::similaritySearch(
+    const Fingerprint& reference, const QString& dbname, const QString& dbkey,
+    unsigned int max_return_count, float similarity_cutoff, CalcType calc_type,
+    vector<char*>& results_smiles, vector<char*>& results_ids,
+    vector<float>& results_scores, unsigned long& approximate_result_count)
 {
     if (calc_type == CalcType::GPU) {
         m_databases[dbname]->search(reference, dbkey, max_return_count,
-                similarity_cutoff, results_smiles, results_ids,
-                results_scores, approximate_result_count);
+                                    similarity_cutoff, results_smiles,
+                                    results_ids, results_scores,
+                                    approximate_result_count);
     } else {
         m_databases[dbname]->search_cpu(reference, dbkey, max_return_count,
-                similarity_cutoff, results_smiles, results_ids,
-                results_scores, approximate_result_count);
+                                        similarity_cutoff, results_smiles,
+                                        results_ids, results_scores,
+                                        approximate_result_count);
     }
 };
 
@@ -306,10 +304,10 @@ void GPUSimServer::newConnection()
 }
 
 void GPUSimServer::searchDatabases(
-        const Fingerprint& query, int results_requested, float similarity_cutoff,
-        map<QString, QString>& dbname_to_key, vector<char*>& results_smiles,
-        vector<char*>& results_ids, vector<float>& results_scores,
-        unsigned long& approximate_result_count)
+    const Fingerprint& query, int results_requested, float similarity_cutoff,
+    map<QString, QString>& dbname_to_key, vector<char*>& results_smiles,
+    vector<char*>& results_ids, vector<float>& results_scores,
+    unsigned long& approximate_result_count)
 {
     typedef pair<char*, char*> ResultData;
     typedef pair<float, ResultData> SortableResult;
@@ -326,7 +324,7 @@ void GPUSimServer::searchDatabases(
             continue;
         }
         unsigned long local_approximate_result_count;
-        similaritySearch(query, local_dbname, local_key,  results_requested,
+        similaritySearch(query, local_dbname, local_key, results_requested,
                          similarity_cutoff,
                          usingGPU() ? CalcType::GPU : CalcType::CPU,
                          l_results_smiles, l_results_ids, l_results_scores,
@@ -424,8 +422,8 @@ void GPUSimServer::incomingSearchRequest()
 
     unsigned long approximate_result_count = 0;
     searchDatabases(query, results_requested, similarity_cutoff, dbname_to_key,
-            results_smiles, results_ids, results_scores,
-            approximate_result_count);
+                    results_smiles, results_ids, results_scores,
+                    approximate_result_count);
 
     qDebug() << "Search completed, time elapsed:"
              << (float) timer.elapsed() / 1000.0f;

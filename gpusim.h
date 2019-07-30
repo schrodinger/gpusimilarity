@@ -47,23 +47,21 @@ class GPUSimServer : public QObject
      * @param results_ids: Vector to store IDs of results
      * @param results_scores: Vector to store scores of results for
      */
-    void similaritySearch(const Fingerprint& reference,
-            const QString& dbname, const QString& dbkey,
-            unsigned int max_return_count,
-            float similarity_cutoff,
-            CalcType calc_type,
-            std::vector<char*>& results_smiles,
-            std::vector<char*>& results_ids,
-            std::vector<float>& results_scores,
-            unsigned long& approximate_result_count);
+    void similaritySearch(const Fingerprint& reference, const QString& dbname,
+                          const QString& dbkey, unsigned int max_return_count,
+                          float similarity_cutoff, CalcType calc_type,
+                          std::vector<char*>& results_smiles,
+                          std::vector<char*>& results_ids,
+                          std::vector<float>& results_scores,
+                          unsigned long& approximate_result_count);
 
     void searchDatabases(const Fingerprint& reference, int results_requested,
-            float similarity_cutoff,
-            std::map<QString, QString>& dbname_to_key,
-            std::vector<char*>& results_smiles,
-            std::vector<char*>& results_ids,
-            std::vector<float>& results_scores,
-            unsigned long& approximate_result_count);
+                         float similarity_cutoff,
+                         std::map<QString, QString>& dbname_to_key,
+                         std::vector<char*>& results_smiles,
+                         std::vector<char*>& results_ids,
+                         std::vector<float>& results_scores,
+                         unsigned long& approximate_result_count);
 
     /**
      * @brief

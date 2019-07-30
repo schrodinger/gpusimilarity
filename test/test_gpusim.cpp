@@ -51,15 +51,15 @@ BOOST_AUTO_TEST_CASE(CompareGPUtoCPU)
         std::vector<char*> gpu_ids;
         std::vector<float> gpu_scores;
         server.similaritySearch(fp, "small", dbkey, return_count,
-                similarity_cutoff, CalcType::GPU, gpu_smiles, gpu_ids,
-                gpu_scores, approximate_result_count);
+                                similarity_cutoff, CalcType::GPU, gpu_smiles,
+                                gpu_ids, gpu_scores, approximate_result_count);
 
         std::vector<char*> cpu_smiles;
         std::vector<char*> cpu_ids;
         std::vector<float> cpu_scores;
         server.similaritySearch(fp, "small", dbkey, return_count,
-                similarity_cutoff, CalcType::CPU, cpu_smiles, cpu_ids,
-                cpu_scores, approximate_result_count);
+                                similarity_cutoff, CalcType::CPU, cpu_smiles,
+                                cpu_ids, cpu_scores, approximate_result_count);
 
         BOOST_CHECK_EQUAL(gpu_smiles.size(), return_count);
         for (unsigned int i = 0; i < gpu_smiles.size(); i++) {
@@ -119,8 +119,8 @@ BOOST_AUTO_TEST_CASE(TestSimilarityCutoff)
         std::vector<char*> ids;
         std::vector<float> scores;
         server.similaritySearch(fp, "small", dbkey, return_count,
-                similarity_cutoffs[i], CalcType::GPU, smiles, ids, scores,
-                approximate_result_count);
+                                similarity_cutoffs[i], CalcType::GPU, smiles,
+                                ids, scores, approximate_result_count);
 
         BOOST_CHECK_EQUAL(smiles.size(), result_counts[i]);
         BOOST_CHECK_EQUAL(approximate_result_count, approximate_counts[i]);
