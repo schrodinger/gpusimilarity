@@ -24,6 +24,7 @@ namespace gpusim
 
 class FingerprintDB;
 class FingerprintDBPriv;
+class StorageResultObject;
 
 typedef std::pair<char*, char*> ResultData;
 typedef std::pair<float, ResultData> SortableResult;
@@ -103,16 +104,20 @@ class FingerprintDB : public QObject
      * @param similarity_cutoff: Minimum similarity score to return
      */
     void search(const Fingerprint& query, const QString& dbkey,
-                std::vector<char*>& results_smiles,
-                std::vector<char*>& results_ids,
-                std::vector<float>& results_scores, unsigned int return_count,
-                float similarity_cutoff) const;
+            unsigned int max_return_count,
+            float similarity_cutoff,
+            std::vector<char*>& results_smiles,
+            std::vector<char*>& results_ids,
+            std::vector<float>& results_scores,
+            unsigned long& approximate_result_count) const;
 
     void search_cpu(const Fingerprint& query, const QString& dbkey,
-                    std::vector<char*>& results_smiles,
-                    std::vector<char*>& results_ids,
-                    std::vector<float>& results_scores,
-                    unsigned int return_count, float similarity_cutoff) const;
+            unsigned int max_return_count,
+            float similarity_cutoff,
+            std::vector<char*>& results_smiles,
+            std::vector<char*>& results_ids,
+            std::vector<float>& results_scores,
+            unsigned long& approximate_result_count) const;
 
     char* getSmiles(int index) const { return m_smiles[index]; }
     char* getID(int index) const { return m_ids[index]; }
@@ -125,7 +130,7 @@ class FingerprintDB : public QObject
 
     void search_storage(const Fingerprint& query,
                         const std::shared_ptr<FingerprintDBStorage>& storage,
-                        std::vector<SortableResult>* sortable_results,
+                        StorageResultObject* results,
                         unsigned int return_count,
                         float similarity_cutoff) const;
 

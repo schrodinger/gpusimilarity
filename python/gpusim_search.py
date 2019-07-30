@@ -61,6 +61,7 @@ def main():
             raise RuntimeError("Incorrect result ID returned!")
 
         return_count = data_reader.readInt()
+        approximate_matches = data_reader.readUInt64()
 
         for i in range(return_count):
             smiles.append(data_reader.readString())
@@ -69,6 +70,8 @@ def main():
         for i in range(return_count):
             scores.append(data_reader.readFloat())
 
+        print("Approximate total matches: {0}, returning {1}".format(
+            approximate_matches, return_count))
         for cid, smi, score in zip(ids, smiles, scores):
             print("{0} {1}: {2}".format(cid, smi, score))
         smiles = input("Smiles: ")

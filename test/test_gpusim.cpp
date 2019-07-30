@@ -44,21 +44,22 @@ BOOST_AUTO_TEST_CASE(CompareGPUtoCPU)
     const vector<int> return_counts = {10, 15};
     const float similarity_cutoff = 0;
     const QString dbkey = "pass"; // Passed to database during creation
+    unsigned long approximate_result_count;
 
     for (auto return_count : return_counts) {
         std::vector<char*> gpu_smiles;
         std::vector<char*> gpu_ids;
         std::vector<float> gpu_scores;
-        server.similaritySearch(fp, "small", dbkey, gpu_smiles, gpu_ids,
-                                gpu_scores, return_count, similarity_cutoff,
-                                CalcType::GPU);
+        server.similaritySearch(fp, "small", dbkey, return_count,
+                similarity_cutoff, CalcType::GPU, gpu_smiles, gpu_ids,
+                gpu_scores, approximate_result_count);
 
         std::vector<char*> cpu_smiles;
         std::vector<char*> cpu_ids;
         std::vector<float> cpu_scores;
-        server.similaritySearch(fp, "small", dbkey, cpu_smiles, cpu_ids,
-                                cpu_scores, return_count, similarity_cutoff,
-                                CalcType::CPU);
+        server.similaritySearch(fp, "small", dbkey, return_count,
+                similarity_cutoff, CalcType::CPU, cpu_smiles, cpu_ids,
+                cpu_scores, approximate_result_count);
 
         BOOST_CHECK_EQUAL(gpu_smiles.size(), return_count);
         for (unsigned int i = 0; i < gpu_smiles.size(); i++) {
@@ -88,12 +89,13 @@ BOOST_AUTO_TEST_CASE(TestSearchMultiple)
     dbname_to_key["small"] = "pass";
     dbname_to_key["small_copy"] = "pass";
 
+    unsigned long approximate_result_count;
     server.searchDatabases(fp, return_count, similarity_cutoff, dbname_to_key,
-                           smiles, ids, scores);
+                           smiles, ids, scores, approximate_result_count);
 
     BOOST_REQUIRE_EQUAL(smiles.size(), return_count);
-    // Two copies of the database should always have duplicate top 2 results
-    BOOST_REQUIRE_EQUAL(smiles[0], smiles[1]);
+    // Results should have two copies of each ID, one from each DB loaded
+    BOOST_REQUIRE_EQUAL(ids[0], "ZINC00000022;:;ZINC00000022");
 }
 
 BOOST_AUTO_TEST_CASE(TestSimilarityCutoff)
@@ -108,17 +110,20 @@ BOOST_AUTO_TEST_CASE(TestSimilarityCutoff)
     const vector<float> similarity_cutoffs = {0, 0.1, 0.3, 0.4};
     // Results returned for each cutoff range
     const vector<int> result_counts = {10, 10, 3, 1};
+    const vector<unsigned long> approximate_counts = {100, 86, 3, 1};
     const QString dbkey = "pass"; // Passed to database during creation
+    unsigned long approximate_result_count;
 
     for (unsigned int i = 0; i < similarity_cutoffs.size(); i++) {
         std::vector<char*> smiles;
         std::vector<char*> ids;
         std::vector<float> scores;
-        server.similaritySearch(fp, "small", dbkey, smiles, ids, scores,
-                                return_count, similarity_cutoffs[i],
-                                CalcType::GPU);
+        server.similaritySearch(fp, "small", dbkey, return_count,
+                similarity_cutoffs[i], CalcType::GPU, smiles, ids, scores,
+                approximate_result_count);
 
         BOOST_CHECK_EQUAL(smiles.size(), result_counts[i]);
+        BOOST_CHECK_EQUAL(approximate_result_count, approximate_counts[i]);
     }
 }
 

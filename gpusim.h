@@ -37,30 +37,33 @@ class GPUSimServer : public QObject
      * Finds the most similar compounds stored in the database
      * to the reference fingerprint provided
      *
-     * @param query: Fingerprint to find closest matches to
+     * @param reference: Fingerprint to find closest matches to
      * @param dbname: Which database to search against
+     * @param dbkey: Key to access that database
+     * @param max_return_count: Maximum number of results to return
+     * @param similarity_cutoff: Minimum similarity score to return molecules
+     * @param calc_type: Whether to search on CPU or GPU
      * @param results_smiles: Vector to store smiles of results
      * @param results_ids: Vector to store IDs of results
-     * @param results_scores: Vector to store scores of results
-     * @param return_count: Maximum number of results to return
-     * @param similarity_cutoff: Minimum similarity score to return molecules
-     * for
-     * @param calc_type: Whether to search on CPU or GPU
+     * @param results_scores: Vector to store scores of results for
      */
-    void similaritySearch(const Fingerprint& reference, const QString& dbname,
-                          const QString& dbkey,
-                          std::vector<char*>& results_smiles,
-                          std::vector<char*>& results_ids,
-                          std::vector<float>& results_scores,
-                          unsigned int return_count, float similarity_cutoff,
-                          CalcType calc_type = CalcType::GPU);
+    void similaritySearch(const Fingerprint& reference,
+            const QString& dbname, const QString& dbkey,
+            unsigned int max_return_count,
+            float similarity_cutoff,
+            CalcType calc_type,
+            std::vector<char*>& results_smiles,
+            std::vector<char*>& results_ids,
+            std::vector<float>& results_scores,
+            unsigned long& approximate_result_count);
 
     void searchDatabases(const Fingerprint& reference, int results_requested,
-                         float similarity_cutoff,
-                         std::map<QString, QString>& dbname_to_key,
-                         std::vector<char*>& results_smiles,
-                         std::vector<char*>& results_ids,
-                         std::vector<float>& results_scores);
+            float similarity_cutoff,
+            std::map<QString, QString>& dbname_to_key,
+            std::vector<char*>& results_smiles,
+            std::vector<char*>& results_ids,
+            std::vector<float>& results_scores,
+            unsigned long& approximate_result_count);
 
     /**
      * @brief

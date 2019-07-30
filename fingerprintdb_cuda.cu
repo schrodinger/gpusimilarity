@@ -93,12 +93,20 @@ struct TanimotoFunctor {
         for(int i=0; i<m_fp_intsize; i++) {
             const int fp1 = m_ref_fp[i];
             const int fp2 = m_dbdata[offset+i];
-            total += __popc(fp1) + __popc(fp2); 
+            total += __popc(fp1) + __popc(fp2);
             common += __popc(fp1 & fp2);
         }
         float score = static_cast<float>(common) / static_cast<float>(total-common);
         return score >= m_similarity_cutoff ? score : 0;
     };
+};
+
+
+class StorageResultObject
+{
+    public:
+        vector<SortableResult> m_result_data;
+        vector<int> m_approximate_matching_results;
 };
 
 
@@ -109,9 +117,8 @@ class FingerprintDBPriv
 
 };
 
-FingerprintDBStorage::FingerprintDBStorage(FingerprintDB* parent, std::vector<char>& fp_data, 
-            int index_offset, int fp_bitcount) : m_parent(parent), m_index_offset(index_offset), 
-                                                 m_count(fp_data.size() / (fp_bitcount / CHAR_BIT))
+FingerprintDBStorage::FingerprintDBStorage(FingerprintDB* parent,
+        std::vector<char>& fp_data, int index_offset, int fp_bitcount) : m_parent(parent), m_index_offset(index_offset), m_count(fp_data.size() / (fp_bitcount / CHAR_BIT))
 {
     const int* int_data = reinterpret_cast<const int*>(fp_data.data());
     const size_t int_size = fp_data.size() / sizeof(int);
@@ -218,10 +225,11 @@ Fingerprint FingerprintDB::getFingerprint(unsigned int index) const
 
 void FingerprintDB::search_storage(const Fingerprint& query,
         const std::shared_ptr<FingerprintDBStorage>& storage,
-        vector<SortableResult>* sortable_results,
-        unsigned int return_count,
+        StorageResultObject* results,
+        unsigned int max_return_count,
         float similarity_cutoff) const
 {
+    auto& sortable_results = results->m_result_data;
     cudaSetDevice(storage->m_gpu_device);
     static QMutex mutex;
     vector<int> indices;
@@ -261,15 +269,19 @@ void FingerprintDB::search_storage(const Fingerprint& query,
         unsigned int indices_size = std::distance(d_results_indices.begin(),
                 indices_end);
 
+        mutex.lock();
+        results->m_approximate_matching_results.push_back(indices_size);
+        mutex.unlock();
+
         // Sort scores & indices vectors descending on score
         thrust::sort_by_key(d_results_scores.begin(), scores_end,
                 d_results_indices.begin(), thrust::greater<float>());
 
         int results_to_consider = 0;
         results_to_consider = std::min(indices_size,
-                return_count*m_fold_factor*(int)std::log2(2*m_fold_factor));
+                max_return_count*m_fold_factor*(int)std::log2(2*m_fold_factor));
 
-        indices.assign(d_results_indices.begin(), 
+        indices.assign(d_results_indices.begin(),
                 d_results_indices.begin()+results_to_consider);
 
     } catch(thrust::system_error e) {
@@ -278,7 +290,7 @@ void FingerprintDB::search_storage(const Fingerprint& query,
     }
 
     if(m_fold_factor == 1) { // If we don't fold, we can take exact GPU results
-        // Push top return_count results to CPU results vectors to be returned
+        // Push top max_return_count results to CPU results vectors to be returned
         for(auto index : indices) {
             int offset_index = storage->getOffsetIndex(index);
             results_smiles.push_back(m_smiles[offset_index]);
@@ -295,11 +307,11 @@ void FingerprintDB::search_storage(const Fingerprint& query,
             // Uncomment below to debug pre vs post folding scores
             // qDebug() << results_scores[i] << " vs " << d_results_scores[i];
         }
-        top_results_bubble_sort(indices, results_scores, return_count);
+        top_results_bubble_sort(indices, results_scores, max_return_count);
 
-        return_count = std::min((size_t)return_count, indices.size());
-        results_scores.resize(return_count);
-        for(unsigned int i=0;i<return_count;i++) {
+        max_return_count = std::min((size_t)max_return_count, indices.size());
+        results_scores.resize(max_return_count);
+        for(unsigned int i=0;i<max_return_count;i++) {
             // Check whether the re-scored similarity is too low
             if(results_scores[i] < similarity_cutoff) {
                 results_scores.resize(i);
@@ -312,46 +324,49 @@ void FingerprintDB::search_storage(const Fingerprint& query,
 
     mutex.lock();
     for(unsigned int i=0; i<results_smiles.size(); i++) {
-        sortable_results->push_back(SortableResult(results_scores[i], 
+        sortable_results.push_back(SortableResult(results_scores[i],
                     ResultData(results_smiles[i], results_ids[i])));
     }
     mutex.unlock();
 }
 
 
-void FingerprintDB::search(const Fingerprint& query,
-        const QString& dbkey,
+void FingerprintDB::search(const Fingerprint& query, const QString& dbkey,
+        unsigned int max_return_count,
+        float similarity_cutoff,
         std::vector<char*>& results_smiles,
         std::vector<char*>& results_ids,
         std::vector<float>& results_scores,
-        unsigned int return_count,
-        float similarity_cutoff) const
+        unsigned long& approximate_result_count) const
 {
     if(dbkey != m_dbkey) {
         qDebug() << "Key check failed, returning empty results";
         return;
     }
-    vector<SortableResult> sortable_results;
+    StorageResultObject results;
+    auto& sortable_results = results.m_result_data;
 
     vector<QFuture<void> > futures;
     for(auto& storage : m_storage) {
         QFuture<void> future = QtConcurrent::run(this,
                 &FingerprintDB::search_storage, query, storage,
-                &sortable_results, return_count, similarity_cutoff);
+                &results, max_return_count, similarity_cutoff);
         futures.push_back(future);
     }
     for(auto& future : futures) {
         future.waitForFinished();
     }
-    std::sort(sortable_results.begin(), sortable_results.end());
-    std::reverse(sortable_results.begin(), sortable_results.end());
+    std::sort(sortable_results.rbegin(), sortable_results.rend());
+    approximate_result_count = std::accumulate(
+            results.m_approximate_matching_results.begin(),
+            results.m_approximate_matching_results.end(), 0);
 
     for(auto result : sortable_results) {
         results_scores.push_back(result.first);
         results_smiles.push_back(result.second.first);
         results_ids.push_back(result.second.second);
     }
-    int result_size = std::min((int)return_count, (int)results_scores.size());
+    int result_size = std::min((int)max_return_count, (int)results_scores.size());
     results_scores.resize(result_size);
     results_smiles.resize(result_size);
     results_ids.resize(result_size);
