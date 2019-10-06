@@ -273,22 +273,22 @@ bool GPUSimServer::setupSocket()
     return true;
 }
 
-void GPUSimServer::similaritySearch(const Fingerprint& reference,
-                                    const QString& dbname, const QString& dbkey,
-                                    vector<char*>& results_smiles,
-                                    vector<char*>& results_ids,
-                                    vector<float>& results_scores,
-                                    unsigned int return_count,
-                                    float similarity_cutoff, CalcType calc_type)
+void GPUSimServer::similaritySearch(
+    const Fingerprint& reference, const QString& dbname, const QString& dbkey,
+    unsigned int max_return_count, float similarity_cutoff, CalcType calc_type,
+    vector<char*>& results_smiles, vector<char*>& results_ids,
+    vector<float>& results_scores, unsigned long& approximate_result_count)
 {
     if (calc_type == CalcType::GPU) {
-        m_databases[dbname]->search(reference, dbkey, results_smiles,
-                                    results_ids, results_scores, return_count,
-                                    similarity_cutoff);
+        m_databases[dbname]->search(reference, dbkey, max_return_count,
+                                    similarity_cutoff, results_smiles,
+                                    results_ids, results_scores,
+                                    approximate_result_count);
     } else {
-        m_databases[dbname]->search_cpu(reference, dbkey, results_smiles,
+        m_databases[dbname]->search_cpu(reference, dbkey, max_return_count,
+                                        similarity_cutoff, results_smiles,
                                         results_ids, results_scores,
-                                        return_count, similarity_cutoff);
+                                        approximate_result_count);
     }
 };
 
@@ -306,7 +306,8 @@ void GPUSimServer::newConnection()
 void GPUSimServer::searchDatabases(
     const Fingerprint& query, int results_requested, float similarity_cutoff,
     map<QString, QString>& dbname_to_key, vector<char*>& results_smiles,
-    vector<char*>& results_ids, vector<float>& results_scores)
+    vector<char*>& results_ids, vector<float>& results_scores,
+    unsigned long& approximate_result_count)
 {
     typedef pair<char*, char*> ResultData;
     typedef pair<float, ResultData> SortableResult;
@@ -322,10 +323,13 @@ void GPUSimServer::searchDatabases(
             qDebug() << "Unknown database " << local_dbname << " requested.";
             continue;
         }
-        similaritySearch(query, local_dbname, local_key, l_results_smiles,
-                         l_results_ids, l_results_scores, results_requested,
+        unsigned long local_approximate_result_count;
+        similaritySearch(query, local_dbname, local_key, results_requested,
                          similarity_cutoff,
-                         usingGPU() ? CalcType::GPU : CalcType::CPU);
+                         usingGPU() ? CalcType::GPU : CalcType::CPU,
+                         l_results_smiles, l_results_ids, l_results_scores,
+                         local_approximate_result_count);
+        approximate_result_count += local_approximate_result_count;
         for (unsigned int i = 0; i < l_results_smiles.size(); i++) {
             sortable_results.push_back(SortableResult(
                 l_results_scores[i],
@@ -416,8 +420,10 @@ void GPUSimServer::incomingSearchRequest()
     QTime timer;
     timer.start();
 
+    unsigned long approximate_result_count = 0;
     searchDatabases(query, results_requested, similarity_cutoff, dbname_to_key,
-                    results_smiles, results_ids, results_scores);
+                    results_smiles, results_ids, results_scores,
+                    approximate_result_count);
 
     qDebug() << "Search completed, time elapsed:"
              << (float) timer.elapsed() / 1000.0f;
@@ -438,6 +444,7 @@ void GPUSimServer::incomingSearchRequest()
     QDataStream ints_qds(&ints_qba, QIODevice::WriteOnly);
     ints_qds << request_num;
     ints_qds << (int) results_smiles.size();
+    ints_qds << (quint64) approximate_result_count;
 
     clientConnection->write(ints_qba);
     clientConnection->write(output_smiles);

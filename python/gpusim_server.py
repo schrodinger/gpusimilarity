@@ -110,13 +110,13 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                                        return_count, similarity_cutoff,
                                        request_num)
             try:
-                return_count, smiles, ids, scores = self.deserialize_results(
-                    request_num, output_qba)
+                approximate_results, return_count, smiles, ids, scores = \
+                    self.deserialize_results(request_num, output_qba)
             except RuntimeError:
                 self.flush_socket()
                 raise
 
-            return smiles, ids, scores, src_smiles
+            return approximate_results, smiles, ids, scores, src_smiles
         finally:
             search_mutex.unlock()
 
@@ -129,10 +129,10 @@ class GPUSimHandler(BaseHTTPRequestHandler):
         if not self.path.startswith("/similarity_search_json"):
             return
         try:
-            smiles, ids, scores, _ = self.search_for_results()
+            approx_results, smiles, ids, scores, _ = self.search_for_results()
         except ValueError:
             return
-        self.do_json_POST(smiles, ids, scores)
+        self.do_json_POST(approx_results, smiles, ids, scores)
 
     def deserialize_results(self, request_num, output_qba):
         data_reader = QtCore.QDataStream(output_qba)
@@ -140,6 +140,7 @@ class GPUSimHandler(BaseHTTPRequestHandler):
         if request_num != returned_request:
             raise RuntimeError("Incorrect result ID returned!")
         return_count = data_reader.readInt()
+        approximate_matches = data_reader.readUInt64()
         smiles, ids, scores = [], [], []
         for i in range(return_count):
             smiles.append(data_reader.readString().decode("utf-8"))
@@ -147,20 +148,23 @@ class GPUSimHandler(BaseHTTPRequestHandler):
             ids.append(data_reader.readString().decode("utf-8"))
         for i in range(return_count):
             scores.append(data_reader.readFloat())
-        return return_count, smiles, ids, scores
+        return approximate_matches, return_count, smiles, ids, scores
 
-    def results2json(self, smiles, ids, scores):
-        results = []
+    def results2json(self, approx_results, smiles, ids, scores):
+        results = {}
+        results["approximate_count"] = approx_results
+        results_list = []
         for cid, smi, score in zip(ids, smiles, scores):
-            results.append([cid, smi, score])
+            results_list.append([cid, smi, score])
+        results["results"] = results_list
         return results
 
-    def do_json_POST(self, smiles, ids, scores):
+    def do_json_POST(self, approx_results, smiles, ids, scores):
         self.send_response(200)
         self.send_header('Content-type', 'text/json')
         self.end_headers()
 
-        results_json = self.results2json(smiles, ids, scores)
+        results_json = self.results2json(approx_results, smiles, ids, scores)
         self.wfile.write(json.dumps(results_json).encode('utf8'))
 
 
@@ -174,7 +178,10 @@ class GPUSimHTTPHandler(GPUSimHandler):
                 '_-2-_', '\\').replace('_-3-_', '#')
             gpusim_utils.smiles_to_image_file(smi, fullpath)
 
-    def write_results_html(self, src_smiles, smiles, scores, ids):
+    def write_results_html(self, approx_results, src_smiles, smiles, scores, ids):
+        self.wfile.write(
+            "Approximate Total Matching Compounds: {0}, returning {1}<p>".format(
+                approx_results, len(smiles)).encode())
         for smi, score, cid in zip(smiles, scores, ids):
             id_html = cid
             if cid.startswith('ZINC'):
@@ -225,22 +232,24 @@ class GPUSimHTTPHandler(GPUSimHandler):
             return
 
         try:
-            smiles, ids, scores, src_smiles = self.search_for_results()
+            approx_results, smiles, ids, scores, src_smiles = \
+                self.search_for_results()
         except ValueError:
             return
         if self.path.startswith("/similarity_search_json"):
-            self.do_json_POST(smiles, ids, scores)
+            self.do_json_POST(approx_results, smiles, ids, scores)
         elif self.path.startswith("/similarity_search"):
-            self.do_html_POST(smiles, ids, scores, src_smiles)
+            self.do_html_POST(approx_results, smiles, ids, scores, src_smiles)
 
-    def do_html_POST(self, smiles, ids, scores, src_smiles):
+    def do_html_POST(self, approx_results, smiles, ids, scores, src_smiles):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
 
         f = open(os.path.join(SCRIPT_DIR, "index.html"), 'rb+')
         self.wfile.write(f.read())
-        self.write_results_html(src_smiles, smiles, scores, ids)
+        self.write_results_html(approx_results, src_smiles, smiles, scores,
+                                ids)
 
 
 def parse_args():

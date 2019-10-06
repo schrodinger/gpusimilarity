@@ -18,11 +18,12 @@ using namespace gpusim;
 using std::vector;
 
 void FingerprintDB::search_cpu(const Fingerprint& query, const QString& dbkey,
+                               unsigned int max_return_count,
+                               float similarity_cutoff,
                                std::vector<char*>& results_smiles,
                                std::vector<char*>& results_ids,
                                std::vector<float>& results_scores,
-                               unsigned int return_count,
-                               float similarity_cutoff) const
+                               unsigned long& approximate_result_count) const
 {
     if (dbkey != m_dbkey) {
         qDebug() << "Key check failed, returning empty results";
@@ -35,16 +36,17 @@ void FingerprintDB::search_cpu(const Fingerprint& query, const QString& dbkey,
     vector<float> scores(total);
 
     // TODO:  CPU searching broken for >1GB, needs to be fixed below
+    // TODO:  CPU searching broken, not giving approximate total count back
 
     // Scoring parallelizes well, but bottleneck is now sorting
     QtConcurrent::blockingMap(
         indices,
         TanimotoFunctorCPU(query, m_fp_intsize, m_storage[0]->m_data, scores));
 
-    top_results_bubble_sort(indices, scores, return_count);
+    top_results_bubble_sort(indices, scores, max_return_count);
 
     // Push top return_count results to CPU results vectors to be returned
-    for (unsigned int i = 0; i < return_count; i++) {
+    for (unsigned int i = 0; i < max_return_count; i++) {
         results_smiles.push_back(m_smiles[indices[i]]);
         results_ids.push_back(m_ids[indices[i]]);
         results_scores.push_back(scores[i]);
