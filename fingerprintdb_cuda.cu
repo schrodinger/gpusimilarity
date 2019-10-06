@@ -102,9 +102,8 @@ struct TanimotoFunctor {
 };
 
 
-class StorageResultObject
+struct StorageResultObject
 {
-    public:
         vector<SortableResult> m_result_data;
         vector<int> m_approximate_matching_results;
 };
@@ -279,7 +278,7 @@ void FingerprintDB::search_storage(const Fingerprint& query,
 
         int results_to_consider = 0;
         results_to_consider = std::min(indices_size,
-                max_return_count*m_fold_factor*(int)std::log2(2*m_fold_factor));
+                max_return_count*m_fold_factor*static_cast<int>(std::log2(2*m_fold_factor)));
 
         indices.assign(d_results_indices.begin(),
                 d_results_indices.begin()+results_to_consider);
@@ -366,7 +365,8 @@ void FingerprintDB::search(const Fingerprint& query, const QString& dbkey,
         results_smiles.push_back(result.second.first);
         results_ids.push_back(result.second.second);
     }
-    int result_size = std::min((int)max_return_count, (int)results_scores.size());
+    int result_size = std::min(static_cast<int>(max_return_count),
+            static_cast<int>(results_scores.size()));
     results_scores.resize(result_size);
     results_smiles.resize(result_size);
     results_ids.resize(result_size);

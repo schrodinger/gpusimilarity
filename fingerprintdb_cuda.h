@@ -24,7 +24,7 @@ namespace gpusim
 
 class FingerprintDB;
 class FingerprintDBPriv;
-class StorageResultObject;
+struct StorageResultObject;
 
 typedef std::pair<char*, char*> ResultData;
 typedef std::pair<float, ResultData> SortableResult;
