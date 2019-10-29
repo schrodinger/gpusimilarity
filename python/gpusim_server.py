@@ -48,7 +48,6 @@ class GPUSimHandler(BaseHTTPRequestHandler):
     Retrieve the smiles passed into the form and the results from the backend
     """
 
-
     def get_posted_data(self):
         form = cgi.FieldStorage(
             fp=self.rfile,
@@ -57,21 +56,31 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                      'CONTENT_TYPE': self.headers['Content-Type'],
                      })
 
-        dbnames = form["dbnames"].value.split(',')
+        data = {}
+        data['dbnames'] = form["dbnames"].value.split(',')
         try:
-            dbkeys = form["dbkeys"].value.split(',')
+            data['dbkeys'] = form["dbkeys"].value.split(',')
         except KeyError:  # Handle empty string not passed by HTML post
-            dbkeys = [""]
-        if len(dbnames) != len(dbkeys):
+            data['dbkeys'] = [""]
+        if len(data['dbnames']) != len(data['dbkeys']):
             raise RuntimeError("Need key for each database.")
 
-        return (form["smiles"].value.strip(), int(form["return_count"].value),
-                float(form["similarity_cutoff"].value), dbnames, dbkeys)
+        try:
+            data['version'] = int(form["version"].value.strip())
+        except KeyError:
+            data['version'] = 1
+
+        data["smiles"] = form["smiles"].value.strip()
+        data["return_count"] = int(form["return_count"].value)
+        data["similarity_cutoff"] = float(form["similarity_cutoff"].value)
+
+        return data
 
     def get_data(self, dbnames, dbkeys, src_smiles, return_count,
                  similarity_cutoff, request_num):
         global socket
-        fp_binary, canon_smile = gpusim_utils.smiles_to_fingerprint_bin(src_smiles)
+        fp_binary, canon_smile = gpusim_utils.smiles_to_fingerprint_bin(
+            src_smiles)
         fp_qba = QtCore.QByteArray(fp_binary)
 
         output_qba = QtCore.QByteArray()
@@ -101,23 +110,22 @@ class GPUSimHandler(BaseHTTPRequestHandler):
         global search_mutex
         search_mutex.lock()
         try:
-            src_smiles, return_count, similarity_cutoff, dbnames, dbkeys = \
-                self.get_posted_data()
+            data = self.get_posted_data()
             request_num = random.randint(0, 2**31)
             print("Processing request {0}".format(request_num),
                   file=sys.stderr) #noqa
-            output_qba = self.get_data(dbnames, dbkeys, src_smiles,
-                                       return_count, similarity_cutoff,
-                                       request_num)
+            output_qba = self.get_data(data['dbnames'], data['dbkeys'],
+                                       data['smiles'], data['return_count'],
+                                       data['similarity_cutoff'], request_num)
             try:
                 approximate_results, return_count, smiles, ids, scores = \
                     self.deserialize_results(request_num, output_qba)
             except RuntimeError:
                 self.flush_socket()
-                print("Result Request Num does not match, shutting server down.")
+                print("Result Request Num does not match, shutting down.")
                 sys.exit(1)
 
-            return approximate_results, smiles, ids, scores, src_smiles
+            return approximate_results, smiles, ids, scores, data
         finally:
             search_mutex.unlock()
 
@@ -130,10 +138,11 @@ class GPUSimHandler(BaseHTTPRequestHandler):
         if not self.path.startswith("/similarity_search_json"):
             return
         try:
-            approx_results, smiles, ids, scores, _ = self.search_for_results()
+            approx_results, smiles, ids, scores, data = \
+                self.search_for_results()
         except ValueError:
             return
-        self.do_json_POST(approx_results, smiles, ids, scores)
+        self.do_json_POST(approx_results, smiles, ids, scores, data['version'])
 
     def deserialize_results(self, request_num, output_qba):
         data_reader = QtCore.QDataStream(output_qba)
@@ -151,21 +160,32 @@ class GPUSimHandler(BaseHTTPRequestHandler):
             scores.append(data_reader.readFloat())
         return approximate_matches, return_count, smiles, ids, scores
 
-    def results2json(self, approx_results, smiles, ids, scores):
-        results = {}
-        results["approximate_count"] = approx_results
-        results_list = []
-        for cid, smi, score in zip(ids, smiles, scores):
-            results_list.append([cid, smi, score])
-        results["results"] = results_list
+    def results2json(self, approx_results, smiles, ids, scores, version):
+        results = None
+
+        # Depending on the version of the API caller, we return results
+        # in a different versioned format.
+        if version == 1:
+            results = []
+            for cid, smi, score in zip(ids, smiles, scores):
+                results.append([cid, smi, score])
+        elif version == 2:
+            results = {}
+            results["approximate_count"] = approx_results
+            results_list = []
+            for cid, smi, score in zip(ids, smiles, scores):
+                results_list.append([cid, smi, score])
+            results["results"] = results_list
+
         return results
 
-    def do_json_POST(self, approx_results, smiles, ids, scores):
+    def do_json_POST(self, approx_results, smiles, ids, scores, version):
         self.send_response(200)
         self.send_header('Content-type', 'text/json')
         self.end_headers()
 
-        results_json = self.results2json(approx_results, smiles, ids, scores)
+        results_json = self.results2json(approx_results, smiles, ids, scores,
+                                         version)
         self.wfile.write(json.dumps(results_json).encode('utf8'))
 
 
@@ -179,9 +199,10 @@ class GPUSimHTTPHandler(GPUSimHandler):
                 '_-2-_', '\\').replace('_-3-_', '#')
             gpusim_utils.smiles_to_image_file(smi, fullpath)
 
-    def write_results_html(self, approx_results, src_smiles, smiles, scores, ids):
+    def write_results_html(self, approx_results, src_smiles, smiles, scores,
+                           ids):
         self.wfile.write(
-            "Approximate Total Matching Compounds: {0}, returning {1}<p>".format(
+            "Approximate Total Matching Compounds: {0}, returning {1}<p>".format( #noqa
                 approx_results, len(smiles)).encode())
         for smi, score, cid in zip(smiles, scores, ids):
             id_html = cid
@@ -233,14 +254,16 @@ class GPUSimHTTPHandler(GPUSimHandler):
             return
 
         try:
-            approx_results, smiles, ids, scores, src_smiles = \
+            approx_results, smiles, ids, scores, data = \
                 self.search_for_results()
         except ValueError:
             return
         if self.path.startswith("/similarity_search_json"):
-            self.do_json_POST(approx_results, smiles, ids, scores)
+            self.do_json_POST(approx_results, smiles, ids, scores,
+                              data['version'])
         elif self.path.startswith("/similarity_search"):
-            self.do_html_POST(approx_results, smiles, ids, scores, src_smiles)
+            self.do_html_POST(approx_results, smiles, ids, scores,
+                              data['smiles'])
 
     def do_html_POST(self, approx_results, smiles, ids, scores, src_smiles):
         self.send_response(200)
