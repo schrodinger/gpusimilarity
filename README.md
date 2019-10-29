@@ -4,6 +4,10 @@ A brute-force GPU implementation of chemical fingerprint similarity searching.  
 
 Architecture and benchmarks were presented in [a presentation at the 2018 RDKit European UGM](gpusimilarity_rdkit_presentation.pdf).
 
+## Incentive Version
+
+The commercial GPUSimilarity product ("GPUSimFP") with additional enhancements, maintenance and support is available from [Schrödinger](https://www.schrodinger.com).  Enhancements to the incentive version will be periodically merged into the open source version, similar to Incentive PyMOL.
+
 ## Basic Benchmark
 
 On a machine with four Tesla V100, searching one billion compounds takes ~0.2 seconds.
