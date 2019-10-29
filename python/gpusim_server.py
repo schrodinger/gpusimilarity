@@ -114,7 +114,8 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                     self.deserialize_results(request_num, output_qba)
             except RuntimeError:
                 self.flush_socket()
-                raise
+                print("Result Request Num does not match, shutting server down.")
+                sys.exit(1)
 
             return approximate_results, smiles, ids, scores, src_smiles
         finally:
