@@ -122,7 +122,9 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                     self.deserialize_results(request_num, output_qba)
             except RuntimeError:
                 self.flush_socket()
-                print("Result Request Num does not match, shutting down.")
+                print("Result Request Num does not match, shutting down.",
+                      file=sys.stderr)
+                print(data, file=sys.stderr)
                 sys.exit(1)
 
             return approximate_results, smiles, ids, scores, data
@@ -135,6 +137,10 @@ class GPUSimHandler(BaseHTTPRequestHandler):
             socket.readAll()
 
     def do_POST(self):
+        if not check_socket():
+            self.send_error(404, 'Server currently restarting.')
+            return
+
         if not self.path.startswith("/similarity_search_json"):
             return
         try:
@@ -250,6 +256,10 @@ class GPUSimHTTPHandler(GPUSimHandler):
             self.send_error(404, 'File Not Found: %s' % self.path)
 
     def do_POST(self):
+        if not check_socket():
+            self.send_error(404, 'Server currently restarting.')
+            return
+
         if not self.path.startswith("/similarity_search"):
             return
 
@@ -297,22 +307,24 @@ def parse_args():
     return parser.parse_args()
 
 
-def setup_socket(app):
+def check_socket():
     global socket
 
-    socket = QtNetwork.QLocalSocket(app)
-    while not socket.isValid():
+    if socket is None:
+        app = QtCore.QCoreApplication.instance()
+        socket = QtNetwork.QLocalSocket(app)
+    if not socket.isValid():
         socket_name = 'gpusimilarity'
         socket.connectToServer(socket_name)
-        time.sleep(0.3)
+    return socket.isValid()
 
 
 def main():
 
     args = parse_args()
 
-    # Try to connect to the GPU backend
-    app = QtCore.QCoreApplication([])
+    # Create the QApplication we run as
+    QtCore.QCoreApplication([])
 
     # Start the GPU backend
     cmdline = [GPUSIM_EXEC]
@@ -321,7 +333,6 @@ def main():
     cmdline += ['--gpu_bitcount', args.gpu_bitcount]
     cmdline += args.dbnames
     backend_proc = subprocess.Popen(cmdline)
-    setup_socket(app)
 
     if args.http_interface:
         handler = GPUSimHTTPHandler

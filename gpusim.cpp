@@ -91,9 +91,6 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
     qDebug() << "--------------------------";
     qDebug() << "Utilizing" << get_gpu_count() << "GPUs for calculation.";
 
-    if (!setupSocket())
-        return;
-
     for (auto database_fname : database_fnames) {
         // Read from .fsim file into byte arrays
         int fp_bitcount, fp_count;
@@ -161,6 +158,10 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
             db->copyToGPU(fold_factor);
         }
     }
+
+    if (!setupSocket())
+        return;
+
     qInfo() << "Finished putting graphics card data up.";
     qInfo() << "Ready for searches.";
 };
