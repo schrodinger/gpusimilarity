@@ -10,7 +10,6 @@ import os
 import random
 import subprocess
 import sys
-import time
 import tempfile
 
 from PyQt5 import QtCore, QtNetwork
@@ -48,7 +47,7 @@ class GPUSimHandler(BaseHTTPRequestHandler):
     Retrieve the smiles passed into the form and the results from the backend
     """
 
-    def get_posted_data(self):
+    def get_posted_query(self):
         form = cgi.FieldStorage(
             fp=self.rfile,
             headers=self.headers,
@@ -56,44 +55,41 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                      'CONTENT_TYPE': self.headers['Content-Type'],
                      })
 
-        data = {}
-        data['dbnames'] = form["dbnames"].value.split(',')
-        try:
-            data['dbkeys'] = form["dbkeys"].value.split(',')
-        except KeyError:  # Handle empty string not passed by HTML post
-            data['dbkeys'] = [""]
-        if len(data['dbnames']) != len(data['dbkeys']):
+        query = {}
+        query['dbnames'] = form["dbnames"].value.split(',')
+
+        keys = form.getvalue("dbkeys", "")
+        query['dbkeys'] = keys.split(',')
+
+        if len(query['dbnames']) != len(query['dbkeys']):
             raise RuntimeError("Need key for each database.")
 
-        try:
-            data['version'] = int(form["version"].value.strip())
-        except KeyError:
-            data['version'] = 1
+        version = form.getvalue("version", "1")
+        query['version'] = int(version)
 
-        data["smiles"] = form["smiles"].value.strip()
-        data["return_count"] = int(form["return_count"].value)
-        data["similarity_cutoff"] = float(form["similarity_cutoff"].value)
+        query["smiles"] = form["smiles"].value.strip()
+        query["return_count"] = int(form["return_count"].value)
+        query["similarity_cutoff"] = float(form["similarity_cutoff"].value)
 
-        return data
+        return query
 
-    def get_data(self, dbnames, dbkeys, src_smiles, return_count,
-                 similarity_cutoff, request_num):
+    def get_data(self, query, request_num):
         global socket
         fp_binary, canon_smile = gpusim_utils.smiles_to_fingerprint_bin(
-            src_smiles)
+            query['smiles'])
         fp_qba = QtCore.QByteArray(fp_binary)
 
         output_qba = QtCore.QByteArray()
         output_qds = QtCore.QDataStream(output_qba, QtCore.QIODevice.WriteOnly)
 
-        output_qds.writeInt(len(dbnames))
-        for name, key in zip(dbnames, dbkeys):
+        output_qds.writeInt(len(query['dbnames']))
+        for name, key in zip(query['dbnames'], query['dbkeys']):
             output_qds.writeString(name.encode())
             output_qds.writeString(key.encode())
 
         output_qds.writeInt(request_num)
-        output_qds.writeInt(return_count)
-        output_qds.writeFloat(similarity_cutoff)
+        output_qds.writeInt(query['return_count'])
+        output_qds.writeFloat(query['similarity_cutoff'])
         output_qds << fp_qba
 
         socket.write(output_qba)
@@ -106,17 +102,14 @@ class GPUSimHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_error(404, 'Server unavailable.')
 
-    def search_for_results(self):
+    def search_for_results(self, query):
         global search_mutex
         search_mutex.lock()
         try:
-            data = self.get_posted_data()
             request_num = random.randint(0, 2**31)
             print("Processing request {0}".format(request_num),
                   file=sys.stderr) #noqa
-            output_qba = self.get_data(data['dbnames'], data['dbkeys'],
-                                       data['smiles'], data['return_count'],
-                                       data['similarity_cutoff'], request_num)
+            output_qba = self.get_data(query, request_num)
             try:
                 approximate_results, return_count, smiles, ids, scores = \
                     self.deserialize_results(request_num, output_qba)
@@ -124,10 +117,11 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                 self.flush_socket()
                 print("Result Request Num does not match, shutting down.",
                       file=sys.stderr)
-                print(data, file=sys.stderr)
-                sys.exit(1)
+                print(query, file=sys.stderr)
+                server.shutdown()
+                server.socket.close()
 
-            return approximate_results, smiles, ids, scores, data
+            return approximate_results, smiles, ids, scores
         finally:
             search_mutex.unlock()
 
@@ -137,18 +131,28 @@ class GPUSimHandler(BaseHTTPRequestHandler):
             socket.readAll()
 
     def do_POST(self):
-        if not check_socket():
-            self.send_error(404, 'Server currently restarting.')
-            return
 
         if not self.path.startswith("/similarity_search_json"):
             return
+
+        query = self.get_posted_query()
+
+        if not check_socket():
+            self.send_response(200)
+            self.send_header('Content-type', 'text/json')
+            self.end_headers()
+            response = generate_error_response(query['version'])
+            self.wfile.write(json.dumps(response).encode('utf8'))
+            return
+
         try:
-            approx_results, smiles, ids, scores, data = \
-                self.search_for_results()
+            approx_results, smiles, ids, scores = \
+                self.search_for_results(query)
         except ValueError:
             return
-        self.do_json_POST(approx_results, smiles, ids, scores, data['version'])
+
+        self.do_json_POST(approx_results, smiles, ids, scores,
+                          query['version'])
 
     def deserialize_results(self, request_num, output_qba):
         data_reader = QtCore.QDataStream(output_qba)
@@ -256,24 +260,31 @@ class GPUSimHTTPHandler(GPUSimHandler):
             self.send_error(404, 'File Not Found: %s' % self.path)
 
     def do_POST(self):
-        if not check_socket():
-            self.send_error(404, 'Server currently restarting.')
-            return
 
         if not self.path.startswith("/similarity_search"):
             return
 
+        query = self.get_posted_query()
+
+        if not check_socket():
+            self.send_response(200)
+            self.send_header('Content-type', 'text/json')
+            self.end_headers()
+            response = generate_error_response(query['version'])
+            self.wfile.write(json.dumps(response).encode('utf8'))
+            return
+
         try:
-            approx_results, smiles, ids, scores, data = \
-                self.search_for_results()
+            approx_results, smiles, ids, scores = \
+                self.search_for_results(query)
         except ValueError:
             return
         if self.path.startswith("/similarity_search_json"):
             self.do_json_POST(approx_results, smiles, ids, scores,
-                              data['version'])
+                              query['version'])
         elif self.path.startswith("/similarity_search"):
             self.do_html_POST(approx_results, smiles, ids, scores,
-                              data['smiles'])
+                              query['smiles'])
 
     def do_html_POST(self, approx_results, smiles, ids, scores, src_smiles):
         self.send_response(200)
@@ -319,8 +330,20 @@ def check_socket():
     return socket.isValid()
 
 
+def generate_error_response(version):
+    error = None
+    if version == 1:
+        error = [['SERVER_REBOOTING', 'CC', '1.0']]
+    elif version == 2:
+        error = {"approximate_count": 0,
+                 "error_code": "The server is currently restarting.",
+                 "results": [['SERVER_REBOOTING', 'CC', '1.0']]}
+    return error
+
+
 def main():
 
+    global server
     args = parse_args()
 
     # Create the QApplication we run as
