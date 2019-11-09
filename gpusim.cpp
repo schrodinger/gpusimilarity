@@ -43,6 +43,7 @@ using std::string;
 using std::vector;
 
 const int DATABASE_VERSION = 3;
+const int MAX_RESULTS = 1000;
 
 namespace gpusim
 {
@@ -403,6 +404,9 @@ void GPUSimServer::incomingSearchRequest()
     qds >> request_num;
 
     qds >> results_requested;
+
+    // Don't let API users abuse the server..
+    results_requested = std::min(MAX_RESULTS, results_requested);
 
     float similarity_cutoff;
     qds >> similarity_cutoff;
