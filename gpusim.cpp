@@ -21,6 +21,7 @@
 #include <QThread>
 #include <QThreadPool>
 #include <QTime>
+#include <QTimer>
 
 #include <algorithm>
 #include <exception>
@@ -451,15 +452,18 @@ void GPUSimServer::incomingSearchRequest()
     output_qds.writeRawData(output_ids.data(), output_ids.size());
     output_qds.writeRawData(output_scores.data(), output_scores.size());
 
-    QSharedMemory response(QString("%1").arg(request_num));
-    response.create(output_qba.size());
-    response.lock();
+    auto *response = new QSharedMemory(QString("%1").arg(request_num));
+    response->create(output_qba.size());
+    response->lock();
 
-    char* to = static_cast<char*>(response.data());
+    char* to = static_cast<char*>(response->data());
     const char* from = static_cast<char*>(output_qba.data());
     memcpy(to, from, output_qba.size());
-    response.unlock();
-    response.detach();
+    response->unlock();
+
+    // Give the client at least 10 seconds to attach before deleting
+    // this object and freeing the memory
+    QTimer::singleShot(10000, response, &QSharedMemory::deleteLater);
 }
 
 Fingerprint GPUSimServer::getFingerprint(const int index, const QString& dbname)

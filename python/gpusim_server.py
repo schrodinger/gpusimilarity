@@ -11,6 +11,7 @@ import random
 import subprocess
 import sys
 import tempfile
+import time
 
 from PyQt5 import QtCore, QtNetwork
 
@@ -23,8 +24,11 @@ import json
 
 import gpusim_utils
 
-SCRIPT_DIR = os.path.split(__file__)[0]
 BITCOUNT = 1024
+MAX_RETRY = 3  # Used for sporadic QSharedMemory::initKey errors
+SCRIPT_DIR = os.path.split(__file__)[0]
+SERVER_RESULT_TIMEOUT = 5  # time.time() is in seconds
+SERVER_ERROR_RESULT = (1, ['CC'], ['SERVER_ERROR_ON_SEARCH'], [0])
 
 socket = None
 
@@ -71,7 +75,7 @@ class GPUSimHandler(BaseHTTPRequestHandler):
 
         return query
 
-    def get_data(self, query, request_num):
+    def get_data(self, query, request_num, retry=0):
         global socket
         fp_binary, canon_smile = gpusim_utils.smiles_to_fingerprint_bin(
             query.smiles)
@@ -97,15 +101,24 @@ class GPUSimHandler(BaseHTTPRequestHandler):
         response = QtCore.QSharedMemory(str(request_num))
         while not response.attach(QtCore.QSharedMemory.ReadOnly):
             if response.error() != QtCore.QSharedMemory.NotFound:
-                print(str(request_num), file=sys.stderr)
+                # There are rare sporadic failures, likely due to a race
+                # condition in QSharedMemory.  Bug has been observed online
+                print(f"Request {request_num} failed", file=sys.stderr)
                 print(response.error(), file=sys.stderr)
-                raise RuntimeError(response.errorString())
+                if retry < MAX_RETRY:
+                    return self.get_data(query, request_num, retry+1)
+                else:
+                    raise RuntimeError(response.errorString())
 
         returned_request = 0
         # Lock, check data, and unlock until it's populated
+        start = time.time()
         while returned_request == 0:
             if not response.lock():
                 raise RuntimeError(response.errorString())
+
+            if (time.time() - start) > SERVER_RESULT_TIMEOUT:
+                raise RuntimeError("Call timed out.")
 
             output_qba = QtCore.QByteArray(bytes(response.constData()))
             data_reader = QtCore.QDataStream(output_qba)
@@ -124,17 +137,8 @@ class GPUSimHandler(BaseHTTPRequestHandler):
         try:
             request_num = random.randint(0, 2**31)
             output_qba = self.get_data(query, request_num)
-            try:
-                approximate_results, return_count, smiles, ids, scores = \
-                    self.deserialize_results(request_num, output_qba)
-            except RuntimeError:
-                self.flush_socket()
-                print("Result Request Num does not match, shutting down.",
-                      file=sys.stderr)
-                print(query, file=sys.stderr)
-                server.shutdown()
-                server.socket.close()
-                raise
+            approximate_results, return_count, smiles, ids, scores = \
+                self.deserialize_results(request_num, output_qba)
 
             return approximate_results, smiles, ids, scores
         finally:
@@ -163,8 +167,9 @@ class GPUSimHandler(BaseHTTPRequestHandler):
         try:
             approx_results, smiles, ids, scores = \
                 self.search_for_results(query)
-        except ValueError:
-            return
+        except RuntimeError as e:
+            print(str(e), file=sys.stderr)  # Output to server log
+            approx_results, smiles, ids, scores = SERVER_ERROR_RESULT
 
         self.do_json_POST(approx_results, smiles, ids, scores,
                           query.version)
@@ -292,8 +297,10 @@ class GPUSimHTTPHandler(GPUSimHandler):
         try:
             approx_results, smiles, ids, scores = \
                 self.search_for_results(query)
-        except ValueError:
-            return
+        except RuntimeError as e:
+            print(str(e), file=sys.stderr)  # Output to server log
+            approx_results, smiles, ids, scores = SERVER_ERROR_RESULT
+
         if self.path.startswith("/similarity_search_json"):
             self.do_json_POST(approx_results, smiles, ids, scores,
                               query.version)
