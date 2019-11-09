@@ -14,6 +14,7 @@ import tempfile
 
 from PyQt5 import QtCore, QtNetwork
 
+from collections import namedtuple
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 
@@ -29,6 +30,9 @@ socket = None
 
 # Make sure there's only ever a single search at a time
 search_mutex = QtCore.QMutex()
+
+QueryParams = namedtuple('QueryParams', 'dbnames dbkeys version '
+                         'smiles return_count similarity_cutoff')
 
 try:
     from gpusim_server_loc import GPUSIM_EXEC  # Used in schrodinger env
@@ -55,49 +59,46 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                      'CONTENT_TYPE': self.headers['Content-Type'],
                      })
 
-        query = {}
-        query['dbnames'] = form["dbnames"].value.split(',')
+        query = QueryParams(dbnames=form["dbnames"].value.split(','),
+                            dbkeys=form.getvalue("dbkeys", "").split(','),
+                            version=int(form.getvalue("version", "1")),
+                            smiles=form["smiles"].value.strip(),
+                            return_count=int(form["return_count"].value),
+                            similarity_cutoff=float(form["similarity_cutoff"].value)) #noqa
 
-        keys = form.getvalue("dbkeys", "")
-        query['dbkeys'] = keys.split(',')
-
-        if len(query['dbnames']) != len(query['dbkeys']):
+        if len(query.dbnames) != len(query.dbkeys):
             raise RuntimeError("Need key for each database.")
-
-        version = form.getvalue("version", "1")
-        query['version'] = int(version)
-
-        query["smiles"] = form["smiles"].value.strip()
-        query["return_count"] = int(form["return_count"].value)
-        query["similarity_cutoff"] = float(form["similarity_cutoff"].value)
 
         return query
 
     def get_data(self, query, request_num):
         global socket
         fp_binary, canon_smile = gpusim_utils.smiles_to_fingerprint_bin(
-            query['smiles'])
+            query.smiles)
         fp_qba = QtCore.QByteArray(fp_binary)
 
         parameter_qba = QtCore.QByteArray()
         parameter_qds = QtCore.QDataStream(parameter_qba,
                                            QtCore.QIODevice.WriteOnly)
 
-        parameter_qds.writeInt(len(query['dbnames']))
-        for name, key in zip(query['dbnames'], query['dbkeys']):
+        parameter_qds.writeInt(len(query.dbnames))
+        for name, key in zip(query.dbnames, query.dbkeys):
             parameter_qds.writeString(name.encode())
             parameter_qds.writeString(key.encode())
 
         parameter_qds.writeInt(request_num)
-        parameter_qds.writeInt(query['return_count'])
-        parameter_qds.writeFloat(query['similarity_cutoff'])
+        parameter_qds.writeInt(query.return_count)
+        parameter_qds.writeFloat(query.similarity_cutoff)
         parameter_qds << fp_qba
 
         socket.write(parameter_qba)
         socket.flush()
+
         response = QtCore.QSharedMemory(str(request_num))
         while not response.attach(QtCore.QSharedMemory.ReadOnly):
             if response.error() != QtCore.QSharedMemory.NotFound:
+                print(str(request_num), file=sys.stderr)
+                print(response.error(), file=sys.stderr)
                 raise RuntimeError(response.errorString())
 
         returned_request = 0
@@ -122,8 +123,6 @@ class GPUSimHandler(BaseHTTPRequestHandler):
         search_mutex.lock()
         try:
             request_num = random.randint(0, 2**31)
-            print("Processing request {0}".format(request_num),
-                  file=sys.stderr) #noqa
             output_qba = self.get_data(query, request_num)
             try:
                 approximate_results, return_count, smiles, ids, scores = \
@@ -157,7 +156,7 @@ class GPUSimHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'text/json')
             self.end_headers()
-            response = generate_error_response(query['version'])
+            response = generate_error_response(query.version)
             self.wfile.write(json.dumps(response).encode('utf8'))
             return
 
@@ -168,7 +167,7 @@ class GPUSimHandler(BaseHTTPRequestHandler):
             return
 
         self.do_json_POST(approx_results, smiles, ids, scores,
-                          query['version'])
+                          query.version)
 
     def deserialize_results(self, request_num, output_qba):
         data_reader = QtCore.QDataStream(output_qba)
@@ -286,7 +285,7 @@ class GPUSimHTTPHandler(GPUSimHandler):
             self.send_response(200)
             self.send_header('Content-type', 'text/json')
             self.end_headers()
-            response = generate_error_response(query['version'])
+            response = generate_error_response(query.version)
             self.wfile.write(json.dumps(response).encode('utf8'))
             return
 
@@ -297,10 +296,10 @@ class GPUSimHTTPHandler(GPUSimHandler):
             return
         if self.path.startswith("/similarity_search_json"):
             self.do_json_POST(approx_results, smiles, ids, scores,
-                              query['version'])
+                              query.version)
         elif self.path.startswith("/similarity_search"):
             self.do_html_POST(approx_results, smiles, ids, scores,
-                              query['smiles'])
+                              query.smiles)
 
     def do_html_POST(self, approx_results, smiles, ids, scores, src_smiles):
         self.send_response(200)
