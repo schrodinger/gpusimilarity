@@ -79,24 +79,39 @@ class GPUSimHandler(BaseHTTPRequestHandler):
             query['smiles'])
         fp_qba = QtCore.QByteArray(fp_binary)
 
-        output_qba = QtCore.QByteArray()
-        output_qds = QtCore.QDataStream(output_qba, QtCore.QIODevice.WriteOnly)
+        parameter_qba = QtCore.QByteArray()
+        parameter_qds = QtCore.QDataStream(parameter_qba,
+                                           QtCore.QIODevice.WriteOnly)
 
-        output_qds.writeInt(len(query['dbnames']))
+        parameter_qds.writeInt(len(query['dbnames']))
         for name, key in zip(query['dbnames'], query['dbkeys']):
-            output_qds.writeString(name.encode())
-            output_qds.writeString(key.encode())
+            parameter_qds.writeString(name.encode())
+            parameter_qds.writeString(key.encode())
 
-        output_qds.writeInt(request_num)
-        output_qds.writeInt(query['return_count'])
-        output_qds.writeFloat(query['similarity_cutoff'])
-        output_qds << fp_qba
+        parameter_qds.writeInt(request_num)
+        parameter_qds.writeInt(query['return_count'])
+        parameter_qds.writeFloat(query['similarity_cutoff'])
+        parameter_qds << fp_qba
 
-        socket.write(output_qba)
+        socket.write(parameter_qba)
         socket.flush()
-        socket.waitForReadyRead(30000)
+        response = QtCore.QSharedMemory(str(request_num))
+        while not response.attach(QtCore.QSharedMemory.ReadOnly):
+            if response.error() != QtCore.QSharedMemory.NotFound:
+                raise RuntimeError(response.errorString())
 
-        output_qba = socket.readAll()
+        returned_request = 0
+        # Lock, check data, and unlock until it's populated
+        while returned_request == 0:
+            if not response.lock():
+                raise RuntimeError(response.errorString())
+
+            output_qba = QtCore.QByteArray(bytes(response.constData()))
+            data_reader = QtCore.QDataStream(output_qba)
+            returned_request = data_reader.readInt()
+            response.unlock()
+
+        response.detach()
         return output_qba
 
     def do_GET(self):
@@ -120,6 +135,7 @@ class GPUSimHandler(BaseHTTPRequestHandler):
                 print(query, file=sys.stderr)
                 server.shutdown()
                 server.socket.close()
+                raise
 
             return approximate_results, smiles, ids, scores
         finally:

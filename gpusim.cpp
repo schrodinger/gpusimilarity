@@ -16,6 +16,7 @@
 #include <QFileInfo>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QSharedMemory>
 #include <QSize>
 #include <QThread>
 #include <QThreadPool>
@@ -440,18 +441,25 @@ void GPUSimServer::incomingSearchRequest()
         scores_stream << results_scores[i];
     }
 
+    QByteArray output_qba;
     // Transmit binary data to client and flush the buffered data
-    QByteArray ints_qba;
-    QDataStream ints_qds(&ints_qba, QIODevice::WriteOnly);
-    ints_qds << request_num;
-    ints_qds << (int) results_smiles.size();
-    ints_qds << (quint64) approximate_result_count;
+    QDataStream output_qds(&output_qba, QIODevice::WriteOnly);
+    output_qds << request_num;
+    output_qds << (int) results_smiles.size();
+    output_qds << (quint64) approximate_result_count;
+    output_qds.writeRawData(output_smiles.data(), output_smiles.size());
+    output_qds.writeRawData(output_ids.data(), output_ids.size());
+    output_qds.writeRawData(output_scores.data(), output_scores.size());
 
-    clientConnection->write(ints_qba);
-    clientConnection->write(output_smiles);
-    clientConnection->write(output_ids);
-    clientConnection->write(output_scores);
-    clientConnection->flush();
+    QSharedMemory response(QString("%1").arg(request_num));
+    response.create(output_qba.size());
+    response.lock();
+
+    char* to = static_cast<char*>(response.data());
+    const char* from = static_cast<char*>(output_qba.data());
+    memcpy(to, from, output_qba.size());
+    response.unlock();
+    response.detach();
 }
 
 Fingerprint GPUSimServer::getFingerprint(const int index, const QString& dbname)

@@ -16,6 +16,9 @@ RUN wget https://github.com/rdkit/rdkit/archive/Release_2019_03_1.tar.gz && \
     make && make install && cd / && rm -rf Release_2019_03_1.tar.gz  \
     rdkit-Release_2019_03_1
 
+# Non-RDKit-build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends python3-pil \
+    && apt-get clean
 
 COPY /CMake* /gpusimilarity/
 COPY /*.cpp /gpusimilarity/
