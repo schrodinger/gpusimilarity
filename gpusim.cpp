@@ -84,7 +84,10 @@ class DecompressAssignStringRunnable : public QRunnable
     }
 };
 
-GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
+GPUSimServer::GPUSimServer(
+    const QStringList& database_fnames,
+    int gpu_bitcount,
+    const QString& cache_directory)
 {
     qDebug() << "--------------------------";
     qDebug() << "Starting up GPUSim Server";
@@ -143,7 +146,7 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
 
     if (gpu_bitcount > 0) {
         unsigned int arg_fold_factor = max_fp_bitcount / gpu_bitcount;
-        if (arg_fold_factor < fold_factor) {
+        if (arg_fold_factor && arg_fold_factor < fold_factor) {
             throw std::invalid_argument(
                 "GPU bitset not sufficiently small to fit on GPU");
         }
@@ -156,9 +159,11 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
                  << "to fit in gpu memory";
     }
 
+    qDebug() << "Cache directory: " << cache_directory;
+
     if (usingGPU()) {
         for (auto db : m_databases) {
-            db->copyToGPU(fold_factor);
+            db->copyToGPU(fold_factor, cache_directory);
         }
     }
     qInfo() << "Finished putting graphics card data up.";

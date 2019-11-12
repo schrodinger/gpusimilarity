@@ -27,17 +27,21 @@ int main(int argc, char* argv[])
         "Bitcount", "0");
     parser.addOption(gpuBitcountOption);
 
+    QCommandLineOption cacheDirectoryOption(
+        "cache_directory", "Cache files directory", "Cache");
+    parser.addOption(cacheDirectoryOption);
+
     if (!parser.parse(QCoreApplication::arguments())) {
         qDebug() << parser.errorText();
         return 1;
     }
 
     if (parser.isSet(helpOption)) {
-        qDebug() << "Arg parsing is only done in a reasonable way in"
+        qDebug() << "\n\nArg parsing is only done in a reasonable way in"
                     " the python gpusim_server.py.  Handling here is very "
                     "error prone"
-                    " and not intended for direct use.";
-        return 1;
+                    " and not intended for direct use.\n\n";
+        parser.showHelp(1);
     }
 
     bool ok = false;
@@ -52,8 +56,10 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    auto cache_directory = parser.value(cacheDirectoryOption);
+
     auto db_fnames = parser.positionalArguments();
-    for (auto filename : db_fnames) {
+    for (auto&& filename : db_fnames) {
         bool file_exists = QFileInfo(filename).exists();
         if (!file_exists) {
             qDebug() << "File: \"" << qPrintable(filename) << "\" not found.";
@@ -61,7 +67,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    GPUSimServer gpusim(db_fnames, gpu_bitcount);
+    GPUSimServer gpusim(db_fnames, gpu_bitcount, cache_directory);
     gpusim.setUseGPU(!parser.isSet(cpuOnlyOption));
 
     app.exec();

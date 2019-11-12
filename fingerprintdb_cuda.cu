@@ -130,6 +130,15 @@ unsigned int FingerprintDBStorage::getOffsetIndex(unsigned int without_offset)
     return without_offset + m_index_offset;
 }
 
+void FingerprintDBStorage::copyToGPU(const std::vector<int>& fp_data)
+{
+    m_gpu_device = get_next_gpu(m_data.size() * sizeof(int));
+    cudaSetDevice(m_gpu_device);
+    // Have to create vector where correct cuda device is set
+    m_priv->d_data = make_shared<device_vector<int>>();
+    *(m_priv->d_data) = fp_data;
+}
+
 FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count,
                              const QString& dbkey, vector<vector<char>>& data,
                              vector<char*>& smiles_vector,
@@ -163,35 +172,6 @@ FingerprintDB::FingerprintDB(int fp_bitcount, int fp_count,
     // which won't be used again in calling code
     m_smiles.swap(smiles_vector);
     m_ids.swap(ids_vector);
-}
-
-void FingerprintDB::copyToGPU(unsigned int fold_factor)
-{
-    m_fold_factor = fold_factor;
-    while (m_fp_intsize % m_fold_factor != 0) {
-        m_fold_factor++;
-    }
-
-    if (m_fold_factor == 1) {
-        for (const auto& storage : m_storage) {
-            storage->m_gpu_device =
-                get_next_gpu(storage->m_data.size() * sizeof(int));
-            cudaSetDevice(storage->m_gpu_device);
-            // Have to create vector where correct cuda device is set
-            storage->m_priv->d_data = make_shared<device_vector<int>>();
-            *(storage->m_priv->d_data) = storage->m_data;
-        }
-    } else {
-        for (const auto& storage : m_storage) {
-            auto folded_data = fold_data(storage->m_data);
-            storage->m_gpu_device =
-                get_next_gpu(folded_data.size() * sizeof(int));
-            cudaSetDevice(storage->m_gpu_device);
-            // Have to create vector where correct cuda device is set
-            storage->m_priv->d_data = make_shared<device_vector<int>>();
-            *(storage->m_priv->d_data) = folded_data;
-        }
-    }
 }
 
 void FingerprintDB::getStorageAndLocalIndex(unsigned int offset_index,

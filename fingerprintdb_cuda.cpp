@@ -7,9 +7,12 @@
 
 #include "fingerprintdb_cuda.h"
 
+#include <QDir>
 #include <QDebug>
 #include <QString>
+#include <QDataStream>
 #include <QThreadPool>
+#include <QCryptographicHash>
 #include <QtConcurrent/QtConcurrentMap>
 
 #include "calculation_functors.h"
@@ -67,6 +70,107 @@ FingerprintDB::fold_data(const std::vector<int>& unfolded) const
                                            unfolded, folded));
     return folded;
 }
+
+QByteArray FingerprintDB::getHash() const
+{
+    QCryptographicHash algo(QCryptographicHash::Sha256);
+    for (const auto& storage: m_storage) {
+        const vector<int>& fps = storage->m_data;
+        algo.addData(reinterpret_cast<const char*>(fps.data()),
+                     sizeof(int)*fps.size());
+    }
+    return algo.result();
+}
+
+QString FingerprintDB::getFFPCacheFilename(unsigned int fold_factor) const
+{
+    return QString::number(fold_factor) + '-' + getHash().toHex();
+}
+
+std::unique_ptr<QFile>
+FingerprintDB::openFFPCacheFile(const QString& cache_directory,
+                                unsigned int fold_factor) const
+{
+    std::unique_ptr<QFile> outcome;
+
+    if (cache_directory.isEmpty()) {
+        return outcome;
+    }
+
+    QDir dir(cache_directory);
+    if (!dir.exists()) {
+        if (!dir.mkpath(".")) {
+            qWarning() << Q_FUNC_INFO << ": could not create"
+                       << qUtf8Printable(cache_directory);
+            return outcome;
+        }
+    }
+
+    outcome.reset(new QFile(dir.filePath(getFFPCacheFilename(fold_factor))));
+
+    if (outcome->exists()) {
+        if (!outcome->open(QIODevice::ReadOnly)) {
+            qWarning() << Q_FUNC_INFO << ": could not open"
+                       << qUtf8Printable(outcome->fileName());
+            outcome.reset();
+        }
+    } else {
+        if (!outcome->open(QIODevice::WriteOnly)) {
+            qWarning() << Q_FUNC_INFO << ": could not create"
+                       << qUtf8Printable(outcome->fileName());
+            outcome.reset();
+        }
+    }
+
+    return outcome;
+}
+
+void FingerprintDB::copyToGPU
+    (unsigned int fold_factor, const QString& cache_directory)
+{
+    m_fold_factor = fold_factor;
+    while (m_fp_intsize % m_fold_factor != 0) {
+        m_fold_factor++;
+    }
+
+    if (m_fold_factor == 1) {
+        for (const auto& storage : m_storage) {
+            storage->copyToGPU(storage->m_data);
+        }
+    } else {
+        std::unique_ptr<QFile> cache_file =
+            openFFPCacheFile(cache_directory, fold_factor);
+
+        QDataStream cache_stream;
+        if (cache_file && cache_file->openMode() != QIODevice::NotOpen) {
+            cache_stream.setDevice(cache_file.get());
+            cache_stream.setVersion(QDataStream::Qt_5_2);
+            qDebug() << Q_FUNC_INFO << ": cache:"
+                     << qUtf8Printable(cache_file->fileName())
+                     << " mode:" << cache_file->openMode();
+        }
+
+        std::vector<int> folded_data;
+        for (const auto& storage : m_storage) {
+            const size_t folded_size = storage->m_data.size()/m_fold_factor;
+
+            if (cache_file && cache_file->openMode() == QIODevice::ReadOnly) {
+                folded_data.resize(folded_size);
+                cache_stream.readRawData(
+                    (char*) folded_data.data(), folded_size*sizeof(int));
+            } else {
+                folded_data = fold_data(storage->m_data);
+                if (cache_file &&
+                    cache_file->openMode() == QIODevice::WriteOnly) {
+                    cache_stream.writeRawData(
+                        (char*) folded_data.data(), folded_size*sizeof(int));
+                }
+            }
+            storage->copyToGPU(folded_data);
+        }
+    }
+}
+
 
 namespace gpusim
 {

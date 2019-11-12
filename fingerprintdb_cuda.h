@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include <QFile>
 #include <QObject>
 #include <QString>
 
@@ -41,6 +42,8 @@ class FingerprintDBStorage
                          int index_offset, int fp_bitcount);
     unsigned int getOffsetIndex(unsigned int without_offset);
 
+    void copyToGPU(const std::vector<int>& fp_data);
+
   private:
     FingerprintDB* m_parent;
     std::vector<int> m_data;
@@ -67,11 +70,15 @@ class FingerprintDB : public QObject
      *
      * @param fold_factor: Minimum factor to fold fingerprints by, might need
      *                     fold by a bigger factor to get even folding
+     * @param cache_directory: Directory for folded fingerprints cacheing
+     *                         (no cacheing if empty).
      */
-    void copyToGPU(unsigned int fold_factor);
+    void copyToGPU(unsigned int fold_factor,
+                   const QString& cache_directory = "");
 
     // Total number of fingerprints in DB
     unsigned int count() const { return m_total_count; };
+
 
     /*
      * @brief
@@ -144,6 +151,19 @@ class FingerprintDB : public QObject
     std::vector<char*> m_smiles;
     std::vector<char*> m_ids;
     QString m_dbkey;
+
+    // INTERNAL: Hash sum of the data (does not include smiles/ids/dbkey).
+    QByteArray getHash() const;
+
+    // INTERNAL: Folded fingerprints cache filename.
+    QString getFFPCacheFilename(unsigned int fold_factor) const;
+
+    // INTERNAL: Open folded fingerprints cache file for reading (if
+    //           the file exists) or writing (if it does not).
+
+    std::unique_ptr<QFile>
+        openFFPCacheFile(const QString& cache_directory,
+                         unsigned int fold_factor) const;
 };
 
 size_t get_available_gpu_memory();

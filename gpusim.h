@@ -29,8 +29,12 @@ class GPUSimServer : public QObject
      * clients.  The server will contain the data in the provided .fsim file.
      * @param database_fname: .fsim file storing relevant data in binary format
      * @param gpu_bitcount: If 0, then auto-calculate optimal value
+     * @param cache_directory: Path to cache directory. Empty string disables
+     *     folded fingerprints cacheing.
      */
-    GPUSimServer(const QStringList& database_fnames, int gpu_bitcount = 0);
+    explicit GPUSimServer(const QStringList& database_fnames,
+                          int gpu_bitcount = 0,
+                          const QString& cache_directory = QString());
 
     /**
      * @brief
@@ -87,10 +91,13 @@ class GPUSimServer : public QObject
     bool m_use_gpu = true;
 
     bool setupSocket();
-    void extractData(const QString& database_fname, int& fp_bitcount,
-                     int& fp_count, QString& dbkey,
-                     std::vector<std::vector<char>>& fingerprint_data,
-                     std::vector<char*>& smiles_vector,
-                     std::vector<char*>& ids_vector);
+    static void extractData(
+        const QString& database_fname,
+        int& fp_bitcount,
+        int& fp_count,
+        QString& dbkey,
+        std::vector<std::vector<char>>& fingerprint_data,
+        std::vector<char*>& smiles_vector,
+        std::vector<char*>& ids_vector);
 };
 } // namespace gpusim
