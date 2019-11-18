@@ -16,10 +16,12 @@
 #include <QFileInfo>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QSharedMemory>
 #include <QSize>
 #include <QThread>
 #include <QThreadPool>
 #include <QTime>
+#include <QTimer>
 
 #include <algorithm>
 #include <exception>
@@ -41,6 +43,7 @@ using std::string;
 using std::vector;
 
 const int DATABASE_VERSION = 3;
+const int MAX_RESULTS = 1000;
 
 namespace gpusim
 {
@@ -91,10 +94,7 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
     qDebug() << "--------------------------";
     qDebug() << "Utilizing" << get_gpu_count() << "GPUs for calculation.";
 
-    if (!setupSocket())
-        return;
-
-    for (auto database_fname : database_fnames) {
+    for (const auto& database_fname : database_fnames) {
         // Read from .fsim file into byte arrays
         int fp_bitcount, fp_count;
         QString dbkey;
@@ -161,6 +161,10 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
             db->copyToGPU(fold_factor);
         }
     }
+
+    if (!setupSocket())
+        return;
+
     qInfo() << "Finished putting graphics card data up.";
     qInfo() << "Ready for searches.";
 };
@@ -401,6 +405,9 @@ void GPUSimServer::incomingSearchRequest()
 
     qds >> results_requested;
 
+    // Don't let API users abuse the server..
+    results_requested = std::min(MAX_RESULTS, results_requested);
+
     float similarity_cutoff;
     qds >> similarity_cutoff;
 
@@ -439,18 +446,40 @@ void GPUSimServer::incomingSearchRequest()
         scores_stream << results_scores[i];
     }
 
+    QByteArray output_qba;
     // Transmit binary data to client and flush the buffered data
-    QByteArray ints_qba;
-    QDataStream ints_qds(&ints_qba, QIODevice::WriteOnly);
-    ints_qds << request_num;
-    ints_qds << (int) results_smiles.size();
-    ints_qds << (quint64) approximate_result_count;
+    QDataStream output_qds(&output_qba, QIODevice::WriteOnly);
+    output_qds << request_num;
+    output_qds << (int) results_smiles.size();
+    output_qds << (quint64) approximate_result_count;
+    output_qds.writeRawData(output_smiles.data(), output_smiles.size());
+    output_qds.writeRawData(output_ids.data(), output_ids.size());
+    output_qds.writeRawData(output_scores.data(), output_scores.size());
 
-    clientConnection->write(ints_qba);
-    clientConnection->write(output_smiles);
-    clientConnection->write(output_ids);
-    clientConnection->write(output_scores);
-    clientConnection->flush();
+    auto *response = new QSharedMemory(QString("%1").arg(request_num));
+    if(!response->create(output_qba.size())) {
+        qDebug() << "Search memory creation failed with " <<
+            response->errorString();
+        return;
+    }
+    if(!response->lock()) {
+        qDebug() << "Search memory lock failed with " <<
+            response->errorString();
+        return;
+    }
+
+    char* to = static_cast<char*>(response->data());
+    const char* from = output_qba.data();
+    memcpy(to, from, output_qba.size());
+    if(!response->unlock()) {
+        qDebug() << "Unlock failed, should be impossible!" <<
+            response->errorString();
+        return;
+    }
+
+    // Give the client at least 10 seconds to attach before deleting
+    // this object and freeing the memory
+    QTimer::singleShot(10000, response, &QSharedMemory::deleteLater);
 }
 
 Fingerprint GPUSimServer::getFingerprint(const int index, const QString& dbname)
