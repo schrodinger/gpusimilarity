@@ -94,7 +94,7 @@ GPUSimServer::GPUSimServer(const QStringList& database_fnames, int gpu_bitcount)
     qDebug() << "--------------------------";
     qDebug() << "Utilizing" << get_gpu_count() << "GPUs for calculation.";
 
-    for (auto database_fname : database_fnames) {
+    for (const auto& database_fname : database_fnames) {
         // Read from .fsim file into byte arrays
         int fp_bitcount, fp_count;
         QString dbkey;
@@ -457,13 +457,25 @@ void GPUSimServer::incomingSearchRequest()
     output_qds.writeRawData(output_scores.data(), output_scores.size());
 
     auto *response = new QSharedMemory(QString("%1").arg(request_num));
-    response->create(output_qba.size());
-    response->lock();
+    if(!response->create(output_qba.size())) {
+        qDebug() << "Search memory creation failed with " <<
+            response->errorString();
+        return;
+    }
+    if(!response->lock()) {
+        qDebug() << "Search memory lock failed with " <<
+            response->errorString();
+        return;
+    }
 
     char* to = static_cast<char*>(response->data());
-    const char* from = static_cast<char*>(output_qba.data());
+    const char* from = output_qba.data();
     memcpy(to, from, output_qba.size());
-    response->unlock();
+    if(!response->unlock()) {
+        qDebug() << "Unlock failed, should be impossible!" <<
+            response->errorString();
+        return;
+    }
 
     // Give the client at least 10 seconds to attach before deleting
     // this object and freeing the memory

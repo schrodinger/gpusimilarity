@@ -26,7 +26,7 @@ import gpusim_utils
 
 BITCOUNT = 1024
 MAX_RETRY = 3  # Used for sporadic QSharedMemory::initKey errors
-SCRIPT_DIR = os.path.split(__file__)[0]
+SCRIPT_DIR = os.path.dirname(__file__)
 SERVER_RESULT_TIMEOUT = 5  # time.time() is in seconds
 SERVER_ERROR_RESULT = (1, ['CC'], ['SERVER_ERROR_ON_SEARCH'], [0])
 
@@ -41,7 +41,7 @@ QueryParams = namedtuple('QueryParams', 'dbnames dbkeys version '
 try:
     from gpusim_server_loc import GPUSIM_EXEC  # Used in schrodinger env
 except ImportError:
-    script_path = os.path.split(__file__)[0]
+    script_path = os.path.dirname(__file__)
     GPUSIM_EXEC = os.path.join(script_path, '..', 'gpusimserver')
 
 
