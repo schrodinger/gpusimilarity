@@ -6,7 +6,7 @@ Architecture and benchmarks were presented in [a presentation at the 2018 RDKit 
 
 ## Incentive Version
 
-The commercial GPUSimilarity product ("GPUSimFP") with additional enhancements, maintenance and support is available from [Schrödinger](https://www.schrodinger.com).  Enhancements to the incentive version will be periodically merged into the open source version, similar to Incentive PyMOL.
+The commercial GPUSimilarity product ("FPSim GPU") with additional enhancements, maintenance and support is available from [Schrödinger](https://www.schrodinger.com).  Enhancements to the incentive version will be periodically merged into the open source version, similar to Incentive PyMOL.
 
 ## Basic Benchmark
 
