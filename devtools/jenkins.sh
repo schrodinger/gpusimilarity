@@ -6,6 +6,6 @@ source activate gpu_sim
 
 mkdir bld
 cd bld
-ccmake ../gpusimilarity
+ccmake ../
 make -j5
 ctest

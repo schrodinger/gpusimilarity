@@ -11,7 +11,10 @@
     "cmake",
     "make",
     "pyctest",
-    "boost"
+    "boost",
+    "nvcc_linux-64",
+    "cudatoolkit",
+    "cuda-gdb"
   ],
   "wheels": [
   ],
