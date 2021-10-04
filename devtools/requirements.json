@@ -1,0 +1,23 @@
+{
+  "channels": [
+    "rdkit",
+    "anaconda",
+    "conda-forge"
+  ],
+  "packages": [
+    "requests>=2.18.4",
+    "pyqt",
+    "rdkit",
+    "cmake",
+    "make",
+    "pyctest",
+    "boost"
+  ],
+  "wheels": [
+  ],
+  "cpu_packages": [
+  ],
+  "gpu_packages": [
+    "cudatoolkit=9.0"
+  ]
+}
