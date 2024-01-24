@@ -6,7 +6,7 @@ include(GNUInstallDirs)
 set(QT_MINIMAL_VERSION 5.2.0)
 set(BOOST_MINIMAL_VERSION 1.54.0)
 set(CUDA_MINIMAL_VERSION 8.0.61)
-set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall")
 
 # ccmake -DCMAKE_CUDA_COMPILER=path/to/nvcc ../gpusimilarity
@@ -58,14 +58,14 @@ if (DOXYGEN_FOUND) # make doc_doxygen
 endif()
 
 add_library(gpusim gpusim.cpp fingerprintdb_cuda.cpp fingerprintdb_cuda.cu calculation_functors.cpp)
-set_property(TARGET gpusim PROPERTY CUDA_STANDARD 11)
+set_property(TARGET gpusim PROPERTY CUDA_STANDARD 14)
 target_include_directories(gpusim PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     $<INSTALL_INTERFACE:include>)
 
 
 add_executable(gpusimserver main.cpp)
-# Force C++11
+# Force C++14
 target_compile_features(gpusimserver PRIVATE cxx_override)
 
 # Force -fPIC on executable. This is Qt bug.

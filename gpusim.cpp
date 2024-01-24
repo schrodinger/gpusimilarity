@@ -417,7 +417,7 @@ void GPUSimServer::incomingSearchRequest()
     vector<char*> results_smiles, results_ids;
     vector<float> results_scores;
 
-    QTime timer;
+    QElapsedTimer timer;
     timer.start();
 
     unsigned long approximate_result_count = 0;
